@@ -26,8 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# Create venv
-RUN python3 -m venv /opt/venv
+# Create venv with system-site-packages for uno access
+RUN python3 -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install runtime deps
@@ -35,12 +35,15 @@ RUN pip install --no-cache-dir \
   fastapi uvicorn[standard] python-multipart pymupdf prometheus-client ujson \
   unoserver
 
-# Non-root user
-RUN useradd -m -u 10001 appuser
 WORKDIR /app
 COPY src/ ./src/
 COPY pyproject.toml README.md PROJECT.md ./
 
+# Install the officeplane package
+RUN pip install --no-cache-dir -e .
+
+# Non-root user
+RUN useradd -m -u 10001 appuser
 RUN mkdir -p /data && chown -R appuser:appuser /data /app
 USER appuser
 
@@ -52,4 +55,4 @@ ENV POOL_SIZE=6
 ENV CONVERT_TIMEOUT_SEC=45
 ENV LOG_FORMAT=json
 
-CMD ["uvicorn", "officeplane.api.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+CMD ["uvicorn", "officeplane.api.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1", "--loop", "uvloop"]

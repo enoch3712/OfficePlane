@@ -74,7 +74,8 @@ officeplane/
     load_test.py
   tests/
     test_health.py
-    test_render_mock_driver.py
+    test_render_real_pptx.py
+    test_render_docker.py
   pyproject.toml
   README.md
   PROJECT.md (this file)
