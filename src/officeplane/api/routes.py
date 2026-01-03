@@ -35,7 +35,24 @@ driver_status: Optional[Callable[[], dict]] = None
 if DRIVER == "mock":
     from officeplane.drivers.mock_driver import MockDriver
     driver = MockDriver()
+elif DRIVER == "rust":
+    # High-performance Rust native driver
+    from officeplane.drivers.rust_driver import RustDriver, is_available
+    if not is_available():
+        log.warning("Rust driver requested but not available, falling back to libreoffice")
+        from officeplane.drivers.libreoffice_driver import LibreOfficeDriver
+        _lo_driver = LibreOfficeDriver()
+        driver = _lo_driver
+        driver_status = _lo_driver.status
+        _lo_driver.warmup()
+        DRIVER = "libreoffice"  # Update for health endpoint
+    else:
+        _rust_driver = RustDriver()
+        driver = _rust_driver
+        driver_status = _rust_driver.status
+        _rust_driver.warmup()
 else:
+    # Default: Python LibreOffice driver
     from officeplane.drivers.libreoffice_driver import LibreOfficeDriver
     _lo_driver = LibreOfficeDriver()
     driver = _lo_driver

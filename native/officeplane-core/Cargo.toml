@@ -1,0 +1,63 @@
+[package]
+name = "officeplane-core"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance native middleware for OfficePlane"
+license = "MIT"
+
+[lib]
+name = "officeplane_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Python bindings
+pyo3 = { version = "0.22", features = ["extension-module"] }
+
+# Async runtime
+tokio = { version = "1.41", features = ["full", "sync", "rt-multi-thread", "io-util", "net", "time"] }
+
+# PDF rendering (MuPDF bindings)
+mupdf = "0.4"
+
+# Image encoding (pinned to 0.24 to avoid edition2024 dependency)
+png = "0.17"
+image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
+
+# Hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Thread pool and sync primitives
+crossbeam = "0.8"
+parking_lot = "0.12"
+rayon = "1.10"
+
+# Path finding
+which = "7.0"
+
+# Memory-mapped buffers for zero-copy
+memmap2 = "0.9"
+bytes = "1.8"
+
+[build-dependencies]
+pyo3-build-config = "0.22"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[features]
+default = []

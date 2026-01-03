@@ -47,3 +47,7 @@ ignore_missing_imports = false
 [[tool.mypy.overrides]]
 module = "fitz"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "officeplane_core"
+ignore_missing_imports = true
