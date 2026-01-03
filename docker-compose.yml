@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector for RAG memory
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: officeplane-pgvector
+    environment:
+      POSTGRES_DB: officeplane
+      POSTGRES_USER: officeplane
+      POSTGRES_PASSWORD: officeplane
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U officeplane"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # OfficePlane API (Python driver)
+  officeplane:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: officeplane-api
+    ports:
+      - "8001:8001"
+    environment:
+      - OFFICEPLANE_DRIVER=libreoffice
+      - DATABASE_URL=postgresql://officeplane:officeplane@pgvector:5432/officeplane
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      pgvector:
+        condition: service_healthy
+    volumes:
+      - ./data:/data
+
+  # OfficePlane API (Rust driver) - optional high-performance variant
+  officeplane-rust:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.rust
+    container_name: officeplane-rust
+    ports:
+      - "8002:8001"
+    environment:
+      - OFFICEPLANE_DRIVER=rust
+      - DATABASE_URL=postgresql://officeplane:officeplane@pgvector:5432/officeplane
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      pgvector:
+        condition: service_healthy
+    volumes:
+      - ./data:/data
+    profiles:
+      - rust  # Only start with: docker compose --profile rust up
+
+volumes:
+  pgdata:
