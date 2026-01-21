@@ -536,7 +536,7 @@ class TestToolExport:
         author = AuthorComponent()
         tools = author.to_function_tools()
 
-        assert len(tools) == 13
+        assert len(tools) == 14
         for tool in tools:
             assert tool["type"] == "function"
             assert "function" in tool
@@ -549,7 +549,7 @@ class TestToolExport:
         author = AuthorComponent()
         tools = author.to_mcp_tools()
 
-        assert len(tools) == 13
+        assert len(tools) == 14
         for tool in tools:
             assert "name" in tool
             assert "description" in tool
@@ -560,7 +560,7 @@ class TestToolExport:
         author = AuthorComponent()
         tools = author.to_anthropic_tools()
 
-        assert len(tools) == 13
+        assert len(tools) == 14
         for tool in tools:
             assert "name" in tool
             assert "description" in tool

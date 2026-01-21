@@ -19,6 +19,14 @@ from pydantic import BaseModel, Field
 from officeplane.components.action import ComponentAction
 from officeplane.components.base import OfficeComponent
 from officeplane.components.context import ComponentContext
+from officeplane.components.planning import (
+    GeneratePlanInput,
+    PlanDisplayer,
+    PlanGenerator,
+    PlanSummary,
+    MockPlanLLM,
+)
+from officeplane.components.runner import LLMProtocol
 from officeplane.documents.store import DocumentStore
 from officeplane.memory.embeddings import EmbeddingClient
 from officeplane.memory.rag import DocumentIndexer, RAGRetriever
@@ -311,12 +319,15 @@ class AuthorComponent(OfficeComponent):
         doc_store: Optional[DocumentStore] = None,
         vector_store: Optional[VectorStore] = None,
         embedding_client: Optional[EmbeddingClient] = None,
+        llm: Optional[LLMProtocol] = None,
     ) -> None:
         self._doc_store = doc_store
         self._vector_store = vector_store
         self._embedding_client = embedding_client
+        self._llm = llm
         self._indexer: Optional[DocumentIndexer] = None
         self._retriever: Optional[RAGRetriever] = None
+        self._plan_generator: Optional[PlanGenerator] = None
         self._connected = False
 
         super().__init__(
@@ -354,6 +365,10 @@ class AuthorComponent(OfficeComponent):
             doc_store=self._doc_store,
             embedding_client=self._embedding_client,
         )
+
+        # Initialize plan generator (use mock LLM if none provided)
+        plan_llm = self._llm if self._llm else MockPlanLLM()
+        self._plan_generator = PlanGenerator(llm=plan_llm)
 
         self._connected = True
 
@@ -508,6 +523,17 @@ class AuthorComponent(OfficeComponent):
                 input_model=ReimportDocumentInput,
                 output_model=ImportOutput,
                 handler=self._reimport_document,
+            )
+        )
+
+        # Generate Plan
+        self._register_action(
+            ComponentAction(
+                name="generate_plan",
+                description="Generate an action plan tree for document creation. Returns a structured plan without executing it.",
+                input_model=GeneratePlanInput,
+                output_model=PlanSummary,
+                handler=self._generate_plan,
             )
         )
 
@@ -1060,3 +1086,29 @@ class AuthorComponent(OfficeComponent):
                 success=False,
                 error=str(e),
             )
+
+    async def _generate_plan(
+        self, ctx: ComponentContext, input_data: GeneratePlanInput
+    ) -> PlanSummary:
+        """Generate an action plan for document creation."""
+        await self._ensure_connected()
+        assert self._plan_generator is not None
+
+        ctx.logger.info(f"Generating plan for: {input_data.prompt[:50]}...")
+
+        result = await self._plan_generator.generate_plan(input_data)
+
+        if not result.success:
+            raise ValueError(f"Plan generation failed: {result.error}")
+
+        plan = result.plan
+
+        # Generate tree visualization
+        tree_viz = PlanDisplayer.to_tree_text(plan)
+
+        ctx.logger.info(
+            f"Generated plan: {plan.title} "
+            f"({plan.total_nodes} actions, {result.generation_time_ms}ms)"
+        )
+
+        return PlanSummary.from_plan(plan)

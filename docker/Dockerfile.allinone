@@ -1,0 +1,131 @@
+# All-in-One OfficePlane Container
+# PostgreSQL + FastAPI + Next.js UI
+
+FROM debian:bookworm-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # LibreOffice and dependencies
+    libreoffice \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-impress \
+    default-jre-headless \
+    # Python
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-uno \
+    # PostgreSQL
+    postgresql \
+    postgresql-contrib \
+    # Node.js (for Next.js)
+    curl \
+    ca-certificates \
+    gnupg \
+    # Process manager
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install pgvector extension
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    postgresql-server-dev-all \
+    && git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
+    && cd /tmp/pgvector \
+    && make \
+    && make install \
+    && cd / \
+    && rm -rf /tmp/pgvector \
+    && apt-get remove -y git build-essential postgresql-server-dev-all \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user
+RUN useradd -m -u 10001 appuser
+
+# Setup Python virtual environment
+RUN python3 -m venv --system-site-packages /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn[standard] \
+    python-multipart \
+    pymupdf \
+    prometheus-client \
+    ujson \
+    prisma \
+    psycopg[binary] \
+    python-docx \
+    openai \
+    websockets \
+    psutil
+
+# Setup PostgreSQL
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "CREATE USER officeplane WITH SUPERUSER PASSWORD 'officeplane';" && \
+    createdb -O officeplane officeplane && \
+    psql officeplane --command "CREATE EXTENSION IF NOT EXISTS vector;" && \
+    /etc/init.d/postgresql stop
+
+# Configure PostgreSQL to listen on all interfaces
+RUN echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/15/main/pg_hba.conf && \
+    echo "listen_addresses='*'" >> /etc/postgresql/15/main/postgresql.conf
+
+USER root
+
+# Copy application code
+WORKDIR /app
+
+# Copy Python app
+COPY src/ ./src/
+COPY pyproject.toml README.md PROJECT.md ./
+RUN pip install --no-cache-dir -e .
+
+# Copy Prisma schema and generate Python client
+COPY prisma/ ./prisma/
+RUN prisma generate
+
+# Copy and build Next.js UI
+COPY ui/package*.json ./ui/
+COPY prisma/ ./ui/prisma/
+WORKDIR /app/ui
+RUN npm install --omit=dev
+
+COPY ui/ ./
+RUN npx prisma generate && \
+    npm run build
+
+WORKDIR /app
+
+# Copy init SQL
+COPY docker/init.sql /docker-entrypoint-initdb.d/
+
+# Setup supervisor configuration
+COPY docker/supervisord.conf /etc/supervisor/conf.d/officeplane.conf
+
+# Create data directories
+RUN mkdir -p /data /var/log/supervisor && \
+    chown -R appuser:appuser /data /app
+
+# Expose ports
+EXPOSE 5432 8001 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8001/health || exit 1
+
+# Start supervisor
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

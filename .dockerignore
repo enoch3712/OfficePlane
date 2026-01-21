@@ -1,0 +1,50 @@
+# Node modules
+node_modules
+ui/node_modules
+ui/.next
+ui/out
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.pytest_cache
+.mypy_cache
+.venv
+venv
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data
+data/
+*.db
+
+# Docker
+Dockerfile*
+docker-compose*.yml

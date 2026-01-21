@@ -1,0 +1,330 @@
+// OfficePlane Database Schema with Prisma
+// Extends existing PostgreSQL + pgvector setup
+
+// Generate Python client for FastAPI backend
+generator py {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+// Generate JavaScript client for Next.js UI
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ============================================================
+// EXISTING SCHEMA (from init.sql)
+// ============================================================
+
+model Document {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String
+  author    String?
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  chapters  Chapter[]
+  chunks    Chunk[]
+  instances DocumentInstance[]
+  tasks     Task[]
+  history   ExecutionHistory[]
+
+  @@map("documents")
+}
+
+model Chapter {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  title      String
+  orderIndex Int      @map("order_index")
+  summary    String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  document Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sections Section[]
+  chunks   Chunk[]
+
+  @@index([documentId], name: "idx_chapters_document")
+  @@index([documentId, orderIndex], name: "idx_chapters_order")
+  @@map("chapters")
+}
+
+model Section {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapterId  String   @map("chapter_id") @db.Uuid
+  title      String
+  orderIndex Int      @map("order_index")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  pages   Page[]
+  chunks  Chunk[]
+
+  @@index([chapterId], name: "idx_sections_chapter")
+  @@index([chapterId, orderIndex], name: "idx_sections_order")
+  @@map("sections")
+}
+
+model Page {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sectionId  String   @map("section_id") @db.Uuid
+  pageNumber Int      @map("page_number")
+  content    String   @default("")
+  wordCount  Int      @default(0) @map("word_count")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relations
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  chunks  Chunk[]
+
+  @@index([sectionId], name: "idx_pages_section")
+  @@index([sectionId, pageNumber], name: "idx_pages_order")
+  @@map("pages")
+}
+
+model Chunk {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  chapterId   String   @map("chapter_id") @db.Uuid
+  sectionId   String   @map("section_id") @db.Uuid
+  pageId      String   @map("page_id") @db.Uuid
+  text        String
+  startOffset Int      @map("start_offset")
+  endOffset   Int      @map("end_offset")
+  tokenCount  Int      @default(0) @map("token_count")
+  embedding   Unsupported("vector(1536)")?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Relations
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chapter  Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  section  Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  page     Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([documentId], name: "idx_chunks_document")
+  @@index([chapterId], name: "idx_chunks_chapter")
+  @@index([pageId], name: "idx_chunks_page")
+  @@map("chunks")
+}
+
+// ============================================================
+// NEW: INSTANCE LIFECYCLE MANAGEMENT
+// ============================================================
+
+enum InstanceState {
+  OPENING
+  OPEN
+  IDLE
+  IN_USE
+  CLOSING
+  CLOSED
+  ERROR
+  CRASHED
+
+  @@map("instance_state")
+}
+
+model DocumentInstance {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId    String?       @map("document_id") @db.Uuid
+  state         InstanceState @default(OPENING)
+  stateMessage  String?       @map("state_message")
+  processPid    Int?          @map("process_pid")
+  hostName      String?       @map("host_name")
+  driverType    String        @map("driver_type") // 'libreoffice', 'rust', 'mock'
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  openedAt      DateTime?     @map("opened_at") @db.Timestamptz
+  lastUsedAt    DateTime?     @map("last_used_at") @db.Timestamptz
+  closedAt      DateTime?     @map("closed_at") @db.Timestamptz
+  memoryMb      Int?          @map("memory_mb")
+  cpuPercent    Float?        @map("cpu_percent")
+  filePath      String?       @map("file_path")
+  metadata      Json          @default("{}")
+
+  // Relations
+  document Document?          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tasks    Task[]
+  history  ExecutionHistory[]
+
+  @@index([state], name: "idx_instances_state")
+  @@index([documentId], name: "idx_instances_document")
+  @@index([lastUsedAt(sort: Desc)], name: "idx_instances_last_used")
+  @@index([hostName, state], name: "idx_instances_host")
+  @@map("document_instances")
+}
+
+// ============================================================
+// NEW: TASK QUEUE SYSTEM
+// ============================================================
+
+enum TaskState {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+  TIMEOUT
+
+  @@map("task_state")
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+
+  @@map("task_priority")
+}
+
+model Task {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskType           String        @map("task_type")
+  taskName           String?       @map("task_name")
+  documentId         String?       @map("document_id") @db.Uuid
+  instanceId         String?       @map("instance_id") @db.Uuid
+  parentTaskId       String?       @map("parent_task_id") @db.Uuid
+  payload            Json          @default("{}")
+  result             Json?
+  state              TaskState     @default(QUEUED)
+  priority           TaskPriority  @default(NORMAL)
+  maxRetries         Int           @default(3) @map("max_retries")
+  retryCount         Int           @default(0) @map("retry_count")
+  retryDelaySeconds  Int           @default(5) @map("retry_delay_seconds")
+  backoffMultiplier  Float         @default(2.0) @map("backoff_multiplier")
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  scheduledFor       DateTime      @default(now()) @map("scheduled_for") @db.Timestamptz
+  startedAt          DateTime?     @map("started_at") @db.Timestamptz
+  completedAt        DateTime?     @map("completed_at") @db.Timestamptz
+  timeoutSeconds     Int           @default(300) @map("timeout_seconds")
+  errorMessage       String?       @map("error_message")
+  errorStack         String?       @map("error_stack")
+  workerId           String?       @map("worker_id")
+  workerHost         String?       @map("worker_host")
+  metadata           Json          @default("{}")
+  tags               String[]      @default([])
+
+  // Relations
+  document    Document?          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  instance    DocumentInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  parentTask  Task?              @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subTasks    Task[]             @relation("TaskHierarchy")
+  retries     TaskRetry[]
+  history     ExecutionHistory[]
+
+  @@index([state, scheduledFor], name: "idx_queue_state")
+  @@index([priority(sort: Desc), createdAt], name: "idx_queue_priority")
+  @@index([documentId], name: "idx_queue_document")
+  @@index([instanceId], name: "idx_queue_instance")
+  @@index([parentTaskId], name: "idx_queue_parent")
+  @@index([createdAt(sort: Desc)], name: "idx_queue_created")
+  @@map("task_queue")
+}
+
+// ============================================================
+// NEW: EXECUTION HISTORY
+// ============================================================
+
+enum EventType {
+  // Instance events
+  INSTANCE_CREATED
+  INSTANCE_OPENED
+  INSTANCE_USED
+  INSTANCE_CLOSED
+  INSTANCE_ERROR
+  INSTANCE_HEARTBEAT
+
+  // Task events
+  TASK_QUEUED
+  TASK_STARTED
+  TASK_COMPLETED
+  TASK_FAILED
+  TASK_RETRY
+  TASK_CANCELLED
+  TASK_TIMEOUT
+
+  // Document events
+  DOCUMENT_CREATED
+  DOCUMENT_IMPORTED
+  DOCUMENT_EXPORTED
+  DOCUMENT_EDITED
+  DOCUMENT_DELETED
+
+  // System events
+  SYSTEM_STARTUP
+  SYSTEM_SHUTDOWN
+  WORKER_STARTED
+  WORKER_STOPPED
+
+  @@map("event_type")
+}
+
+model ExecutionHistory {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventType    EventType @map("event_type")
+  eventMessage String?   @map("event_message")
+  documentId   String?   @map("document_id") @db.Uuid
+  instanceId   String?   @map("instance_id") @db.Uuid
+  taskId       String?   @map("task_id") @db.Uuid
+  timestamp    DateTime  @default(now()) @db.Timestamptz
+  durationMs   Int?      @map("duration_ms")
+  actorType    String?   @map("actor_type") // 'user', 'worker', 'system', 'api'
+  actorId      String?   @map("actor_id")
+  metadata     Json      @default("{}")
+  traceId      String?   @map("trace_id")
+  parentTraceId String?  @map("parent_trace_id")
+
+  // Relations
+  document Document?          @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  instance DocumentInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  task     Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp(sort: Desc)], name: "idx_history_timestamp")
+  @@index([eventType], name: "idx_history_event_type")
+  @@index([documentId], name: "idx_history_document")
+  @@index([instanceId], name: "idx_history_instance")
+  @@index([taskId], name: "idx_history_task")
+  @@index([traceId], name: "idx_history_trace")
+  @@map("execution_history")
+}
+
+// ============================================================
+// NEW: TASK RETRY TRACKING
+// ============================================================
+
+model TaskRetry {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId        String    @map("task_id") @db.Uuid
+  attemptNumber Int       @map("attempt_number")
+  startedAt     DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz
+  state         TaskState
+  errorMessage  String?   @map("error_message")
+  errorStack    String?   @map("error_stack")
+  workerId      String?   @map("worker_id")
+  workerHost    String?   @map("worker_host")
+  metadata      Json      @default("{}")
+
+  // Relations
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, attemptNumber], name: "unique_task_attempt")
+  @@index([taskId], name: "idx_retries_task")
+  @@index([startedAt(sort: Desc)], name: "idx_retries_started")
+  @@map("task_retries")
+}

@@ -1,0 +1,32 @@
+FROM node:20-alpine
+
+RUN apk add --no-cache libc6-compat
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+COPY ui/package.json ./ui/package.json
+
+# Install dependencies
+RUN npm ci --workspace=ui
+
+# Copy prisma schema
+COPY prisma/ ./prisma/
+
+# Generate Prisma client
+RUN npx prisma generate --generator client
+
+# Expose port
+EXPOSE 3000
+
+# Set environment
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=development
+
+# Working directory for the UI
+WORKDIR /app/ui
+
+# Start Next.js in dev mode
+CMD ["npm", "run", "dev"]

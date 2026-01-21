@@ -308,7 +308,7 @@ class TestAuthorComponentImport:
         """Test all 13 actions are registered."""
         author = AuthorComponent()
         # Original 11 + 2 new import actions
-        assert len(author.actions()) == 13
+        assert len(author.actions()) == 14
 
     async def test_import_missing_input(self, author_component, ctx):
         """Test import fails when no file_path or content_base64 provided."""

@@ -42,10 +42,16 @@ COPY pyproject.toml README.md PROJECT.md ./
 # Install the officeplane package
 RUN pip install --no-cache-dir -e .
 
+# Copy Prisma schema
+COPY prisma/ ./prisma/
+
 # Non-root user
 RUN useradd -m -u 10001 appuser
-RUN mkdir -p /data && chown -R appuser:appuser /data /app
+RUN mkdir -p /data && chown -R appuser:appuser /data /app /opt/venv
 USER appuser
+
+# Generate Prisma client as appuser to avoid permission issues
+RUN python -m prisma generate
 
 EXPOSE 8001
 ENV DATA_DIR=/data

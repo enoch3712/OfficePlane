@@ -1,0 +1,27 @@
+{
+  "name": "officeplane-workspace",
+  "version": "0.2.0",
+  "private": true,
+  "workspaces": [
+    "ui",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:ui\" \"npm run dev:api\"",
+    "dev:ui": "cd ui && npm run dev",
+    "dev:api": "cd src && uvicorn officeplane.api.main:app --reload --port 8001",
+    "build": "npm run build:ui",
+    "build:ui": "cd ui && npm run build",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build"
+  },
+  "devDependencies": {
+    "@prisma/client": "^5.22.0",
+    "concurrently": "^8.2.2",
+    "prisma": "^5.22.0"
+  }
+}

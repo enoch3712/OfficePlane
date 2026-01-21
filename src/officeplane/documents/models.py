@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChunkModel(BaseModel):
@@ -28,8 +28,7 @@ class ChunkModel(BaseModel):
     token_count: int = 0
     created_at: datetime = Field(default_factory=datetime.now)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PageModel(BaseModel):
@@ -46,8 +45,7 @@ class PageModel(BaseModel):
     # Loaded chunks (not persisted directly)
     chunks: List[ChunkModel] = Field(default_factory=list, exclude=True)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     def update_word_count(self) -> None:
         """Update word count based on content."""
@@ -67,8 +65,7 @@ class SectionModel(BaseModel):
     # Child pages (loaded separately)
     pages: List[PageModel] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @property
     def page_count(self) -> int:
@@ -89,8 +86,7 @@ class ChapterModel(BaseModel):
     # Child sections (loaded separately)
     sections: List[SectionModel] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @property
     def section_count(self) -> int:
@@ -114,8 +110,7 @@ class DocumentModel(BaseModel):
     # Child chapters (loaded separately)
     chapters: List[ChapterModel] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
     @property
     def chapter_count(self) -> int:

@@ -70,6 +70,14 @@ class DocumentStore:
     # Document Operations
     # ============================================================
 
+    def _parse_metadata(self, metadata_value):
+        """Parse metadata from database, handling both dict and string formats."""
+        import json
+
+        if isinstance(metadata_value, str):
+            return json.loads(metadata_value)
+        return metadata_value if metadata_value else {}
+
     async def create_document(
         self,
         title: str,
@@ -83,8 +91,8 @@ class DocumentStore:
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                INSERT INTO documents (title, author, metadata)
-                VALUES ($1, $2, $3)
+                INSERT INTO documents (title, author, metadata, updated_at)
+                VALUES ($1, $2, $3, NOW())
                 RETURNING id, title, author, metadata, created_at, updated_at
                 """,
                 title,
@@ -96,7 +104,7 @@ class DocumentStore:
             id=row["id"],
             title=row["title"],
             author=row["author"],
-            metadata=row["metadata"] if row["metadata"] else {},
+            metadata=self._parse_metadata(row["metadata"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
@@ -121,7 +129,7 @@ class DocumentStore:
             id=row["id"],
             title=row["title"],
             author=row["author"],
-            metadata=row["metadata"] if row["metadata"] else {},
+            metadata=self._parse_metadata(row["metadata"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
@@ -220,8 +228,8 @@ class DocumentStore:
 
             row = await conn.fetchrow(
                 """
-                INSERT INTO chapters (document_id, title, order_index, summary)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO chapters (document_id, title, order_index, summary, updated_at)
+                VALUES ($1, $2, $3, $4, NOW())
                 RETURNING *
                 """,
                 document_id,
@@ -385,8 +393,8 @@ class DocumentStore:
 
             row = await conn.fetchrow(
                 """
-                INSERT INTO sections (chapter_id, title, order_index)
-                VALUES ($1, $2, $3)
+                INSERT INTO sections (chapter_id, title, order_index, updated_at)
+                VALUES ($1, $2, $3, NOW())
                 RETURNING *
                 """,
                 chapter_id,
@@ -496,8 +504,8 @@ class DocumentStore:
 
             row = await conn.fetchrow(
                 """
-                INSERT INTO pages (section_id, page_number, content, word_count)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO pages (section_id, page_number, content, word_count, updated_at)
+                VALUES ($1, $2, $3, $4, NOW())
                 RETURNING *
                 """,
                 section_id,

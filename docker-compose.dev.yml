@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # FastAPI Backend
+  # FastAPI Backend (Development with hot-reload)
   api:
     build:
       context: .
@@ -35,13 +35,15 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/data
-    command: uvicorn officeplane.api.main:app --host 0.0.0.0 --port 8001
+      # Mount source code for hot-reload
+      - ./src/officeplane:/app/src/officeplane
+    command: uvicorn officeplane.api.main:app --host 0.0.0.0 --port 8001 --reload
 
-  # NextJS UI
+  # NextJS UI (Development with hot-reload)
   ui:
     build:
       context: .
-      dockerfile: ui/Dockerfile
+      dockerfile: ui/Dockerfile.dev
     container_name: officeplane-ui
     ports:
       - "3000:3000"
@@ -54,6 +56,15 @@ services:
         condition: service_healthy
       api:
         condition: service_started
+    volumes:
+      # Mount source code for hot-reload
+      - ./ui:/app/ui
+      - ./prisma:/app/prisma
+      # Exclude node_modules from mounting (use container's version)
+      - /app/node_modules
+      - /app/ui/node_modules
+      # Exclude .next build directory
+      - /app/ui/.next
 
 volumes:
   db_data:

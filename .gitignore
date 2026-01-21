@@ -39,3 +39,12 @@ htmlcov/
 # Local data
 /data/
 demo_out/
+
+# OS specific
+.DS_Store
+.env
+node_modules
+
+# Next.js
+ui/.next/
+cache/
