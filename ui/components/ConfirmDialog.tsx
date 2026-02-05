@@ -49,12 +49,12 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/45 animate-in fade-in-0 duration-150"
         onClick={onClose}
       />
 
       {/* Dialog */}
-      <div className="relative w-full max-w-md mx-4 bg-white rounded-xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md mx-4 bg-white rounded-xl shadow-xl transform-gpu animate-in fade-in-0 zoom-in-95 duration-150">
         {/* Close Button */}
         <button
           onClick={onClose}

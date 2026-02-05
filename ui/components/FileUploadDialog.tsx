@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useId } from 'react'
 import { Upload, FileText, X, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/cn'
 
 interface FileUploadDialogProps {
@@ -15,6 +16,8 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
   const [dragActive, setDragActive] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const inputId = useId()
+  const { addToast } = useToast()
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -47,12 +50,22 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
     const allowedTypes = [
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
       'application/msword', // .doc
+      'application/pdf', // .pdf
     ]
 
-    if (allowedTypes.includes(file.type) || file.name.endsWith('.doc') || file.name.endsWith('.docx')) {
+    if (
+      allowedTypes.includes(file.type) ||
+      file.name.endsWith('.doc') ||
+      file.name.endsWith('.docx') ||
+      file.name.endsWith('.pdf')
+    ) {
       setSelectedFile(file)
     } else {
-      alert('Please select a Word document (.doc or .docx)')
+      addToast({
+        type: 'error',
+        title: 'Invalid file type',
+        description: 'Please select a Word document (.doc, .docx) or PDF (.pdf)',
+      })
     }
   }
 
@@ -70,17 +83,19 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/45 animate-in fade-in-0 duration-150"
         onClick={onClose}
       />
 
       {/* Dialog */}
-      <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-lg shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-lg shadow-xl transform-gpu animate-in fade-in-0 zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Open Instance</h2>
-            <p className="text-sm text-muted-foreground mt-1">Upload a Word document to get started</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Upload a Word or PDF document to get started
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -95,7 +110,7 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
           {/* Drag and Drop Area */}
           <div
             className={cn(
-              "relative border-2 border-dashed rounded-lg p-12 transition-all duration-200",
+              "relative border-2 border-dashed rounded-lg p-12 transition-all duration-200 cursor-pointer",
               dragActive
                 ? "border-primary bg-primary/5 scale-105"
                 : "border-border hover:border-primary/50 hover:bg-accent/5",
@@ -105,13 +120,20 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
+            onClick={() => inputRef.current?.click()}
           >
             <input
               ref={inputRef}
+              id={inputId}
               type="file"
-              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".doc,.docx,.pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
               onChange={handleChange}
-              className="hidden"
+              className="sr-only"
+              onClick={() => {
+                if (inputRef.current) {
+                  inputRef.current.value = ''
+                }
+              }}
             />
 
             <div className="flex flex-col items-center text-center space-y-4">
@@ -126,13 +148,13 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
                       {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => inputRef.current?.click()}
+                  <label
+                    htmlFor={inputId}
+                    className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'cursor-pointer')}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     Choose Different File
-                  </Button>
+                  </label>
                 </>
               ) : (
                 <>
@@ -152,12 +174,13 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       or{' '}
-                      <button
-                        onClick={() => inputRef.current?.click()}
-                        className="text-primary hover:underline font-medium"
+                      <label
+                        htmlFor={inputId}
+                        className="text-primary hover:underline font-medium cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         browse files
-                      </button>
+                      </label>
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2 justify-center">
@@ -166,6 +189,9 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
                     </span>
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
                       .DOCX
+                    </span>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                      .PDF
                     </span>
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground opacity-50">
                       .XLS (Coming Soon)

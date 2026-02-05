@@ -8,11 +8,13 @@ import { TaskQueuePanel } from '@/components/TaskQueuePanel'
 import { HistoryPanel } from '@/components/HistoryPanel'
 import { FileUploadDialog } from '@/components/FileUploadDialog'
 import { useWebSocket } from '@/hooks/useWebSocket'
+import { useToast } from '@/components/ui/toast'
 import { Bell, HelpCircle, User, Plus } from 'lucide-react'
 
 export default function Dashboard() {
   const { status, events } = useWebSocket()
   const queryClient = useQueryClient()
+  const { addToast } = useToast()
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -60,13 +62,25 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['instances'] })
       queryClient.invalidateQueries({ queryKey: ['metrics'] })
 
-      // Show success message
-      alert(
-        `Document "${document.title}" uploaded and instance created!\n\nChapters: ${document.total_chapters}\nPages: ${document.total_pages}\nInstance ID: ${instance.id}`
-      )
+      // Show success toast
+      addToast({
+        type: 'document',
+        title: 'Document uploaded successfully',
+        description: `"${document.title}" is ready`,
+        details: [
+          { label: 'Chapters', value: document.total_chapters },
+          { label: 'Pages', value: document.total_pages },
+        ],
+        duration: 6000,
+      })
     } catch (error) {
       console.error('Upload error:', error)
-      alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      addToast({
+        type: 'error',
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        duration: 8000,
+      })
     } finally {
       setIsUploading(false)
     }

@@ -27,15 +27,18 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - OFFICEPLANE_DRIVER=mock
+      - OFFICEPLANE_DRIVER=libreoffice
       - DATABASE_URL=postgresql://officeplane:officeplane@db:5432/officeplane
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OFFICEPLANE_INGESTION_VISION_PROVIDER=${OFFICEPLANE_INGESTION_VISION_PROVIDER:-gemini}
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./data:/data
-    command: uvicorn officeplane.api.main:app --host 0.0.0.0 --port 8001
+      - ./src:/app/src:ro  # Mount source code for hot reload (read-only)
+    command: uvicorn officeplane.api.main:app --host 0.0.0.0 --port 8001 --reload
 
   # NextJS UI
   ui:

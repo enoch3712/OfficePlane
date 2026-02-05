@@ -24,12 +24,16 @@ datasource db {
 // ============================================================
 
 model Document {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title     String
-  author    String?
-  metadata  Json     @default("{}")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  author       String?
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  // Original file storage
+  sourceFile   Bytes?   @map("source_file")
+  sourceFormat String?  @map("source_format") // 'docx', 'pdf', etc.
+  fileName     String?  @map("file_name")
 
   // Relations
   chapters  Chapter[]

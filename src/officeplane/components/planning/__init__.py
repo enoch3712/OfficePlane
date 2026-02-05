@@ -17,6 +17,7 @@ from officeplane.components.planning.models import (
 from officeplane.components.planning.generator import (
     ChapterSpec,
     DocumentSpec,
+    GeminiPlanAdapter,
     MockPlanLLM,
     PageSpec,
     PlanGenerator,
@@ -42,6 +43,7 @@ __all__ = [
     "DocumentSpec",
     # Generator
     "PlanGenerator",
+    "GeminiPlanAdapter",
     "MockPlanLLM",
     "create_plan_from_outline",
     # Display

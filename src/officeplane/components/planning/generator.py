@@ -110,6 +110,46 @@ Guidelines:
 Respond with ONLY the JSON structure, no additional text."""
 
 
+EDIT_SYSTEM_PROMPT = """You are a document editing assistant. Your task is to generate action plans for modifying existing documents.
+
+Given a document outline and a user request, generate a JSON array of actions to perform.
+
+Available actions:
+- add_chapter: Add a new chapter to the document
+- add_section: Add a new section to a chapter
+- write_page: Write content to a new page in a section
+- edit_page: Edit an existing page's content
+- delete_page: Delete an existing page
+
+IMPORTANT: When an action needs the ID from a previous action (like writing to a newly created section), use the placeholder format: "$node_N.id" where N is the index of the previous action (0-based).
+
+Output format - a JSON object with an "actions" array:
+{
+    "actions": [
+        {
+            "action": "add_section",
+            "chapter_id": "e67fef88-7dd8-4771-b5f7-6c0a4fdb3611",
+            "title": "New Section Title",
+            "description": "What this section covers"
+        },
+        {
+            "action": "write_page",
+            "section_id": "$node_0.id",
+            "content": "The actual content to write on this page"
+        }
+    ]
+}
+
+Guidelines:
+- Reference existing IDs from the document outline (UUIDs like "e67fef88-7dd8-...")
+- Use "$node_N.id" to reference the output ID of action at index N (for newly created items)
+- For new content, include the actual text content in the "content" field
+- Only include actions that are necessary to fulfill the user's request
+- Keep it minimal - don't add unnecessary structure
+
+Respond with ONLY the JSON, no additional text."""
+
+
 class PlanGenerator:
     """
     Generates action plan trees from high-level prompts.
@@ -162,6 +202,184 @@ class PlanGenerator:
                 error=str(e),
                 generation_time_ms=elapsed_ms,
             )
+
+    async def generate_edit_plan(
+        self,
+        document_outline: str,
+        user_request: str,
+        document_id: str,
+        document_title: str,
+    ) -> GeneratePlanOutput:
+        """
+        Generate an action plan for editing an existing document.
+
+        Args:
+            document_outline: Text representation of the existing document structure
+            user_request: What the user wants to do
+            document_id: ID of the document being edited
+            document_title: Title of the document
+
+        Returns:
+            GeneratePlanOutput with the edit plan
+        """
+        start_time = time.time()
+
+        try:
+            user_message = f"""Document outline:
+{document_outline}
+
+User request:
+{user_request}
+
+Generate the action plan JSON:"""
+
+            messages = [
+                {"role": "system", "content": EDIT_SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ]
+
+            # Call LLM
+            response = await self.llm.chat(messages, tools=[])
+
+            content = response.get("content", "")
+            if not content:
+                raise ValueError("LLM returned empty response")
+
+            # Parse JSON from response
+            actions_data = self._extract_json(content)
+            actions_list = actions_data.get("actions", [])
+
+            if not actions_list:
+                raise ValueError("LLM returned no actions")
+
+            # Convert actions to ActionPlan
+            plan = self._actions_to_plan(actions_list, document_id, document_title, user_request)
+
+            elapsed_ms = int((time.time() - start_time) * 1000)
+
+            return GeneratePlanOutput(
+                plan=plan,
+                success=True,
+                generation_time_ms=elapsed_ms,
+            )
+
+        except Exception as e:
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            return GeneratePlanOutput(
+                plan=ActionPlan(title=f"Edit Plan for {document_title}", original_prompt=user_request),
+                success=False,
+                error=str(e),
+                generation_time_ms=elapsed_ms,
+            )
+
+    def _actions_to_plan(
+        self,
+        actions: List[Dict[str, Any]],
+        document_id: str,
+        document_title: str,
+        original_prompt: str,
+    ) -> ActionPlan:
+        """Convert a list of action dicts to an ActionPlan tree."""
+        roots: List[ActionNode] = []
+
+        # Track created nodes for parent references
+        chapter_nodes: Dict[str, ActionNode] = {}
+        section_nodes: Dict[str, ActionNode] = {}
+
+        for idx, action in enumerate(actions):
+            action_type = action.get("action", "")
+            node_id = f"node_{idx}"
+
+            if action_type == "add_chapter":
+                node = ActionNode(
+                    id=node_id,
+                    action_name="add_chapter",
+                    description=action.get("description", f"Add chapter: {action.get('title', '')}"),
+                    inputs={
+                        "document_id": document_id,
+                        "title": action.get("title", "New Chapter"),
+                        "order_index": len(roots),
+                    },
+                    parent_id=None,
+                    children=[],
+                    order_index=len(roots),
+                )
+                roots.append(node)
+                chapter_nodes[node_id] = node
+
+            elif action_type == "add_section":
+                chapter_id = action.get("chapter_id", "")
+                node = ActionNode(
+                    id=node_id,
+                    action_name="add_section",
+                    description=action.get("description", f"Add section: {action.get('title', '')}"),
+                    inputs={
+                        "chapter_id": chapter_id,
+                        "title": action.get("title", "New Section"),
+                        "order_index": 0,
+                    },
+                    parent_id=None,
+                    children=[],
+                    order_index=idx,
+                )
+                roots.append(node)
+                section_nodes[node_id] = node
+
+            elif action_type == "write_page":
+                section_id = action.get("section_id", "")
+                content = action.get("content", "")
+                node = ActionNode(
+                    id=node_id,
+                    action_name="write_page",
+                    description=f"Write page content",
+                    inputs={
+                        "section_id": section_id,
+                        "page_number": 1,
+                        "content": content,
+                    },
+                    parent_id=None,
+                    children=[],
+                    order_index=idx,
+                )
+                roots.append(node)
+
+            elif action_type == "edit_page":
+                page_id = action.get("page_id", "")
+                content = action.get("content", "")
+                node = ActionNode(
+                    id=node_id,
+                    action_name="edit_page",
+                    description=f"Edit page content",
+                    inputs={
+                        "page_id": page_id,
+                        "content": content,
+                    },
+                    parent_id=None,
+                    children=[],
+                    order_index=idx,
+                )
+                roots.append(node)
+
+            elif action_type == "delete_page":
+                page_id = action.get("page_id", "")
+                node = ActionNode(
+                    id=node_id,
+                    action_name="delete_page",
+                    description=f"Delete page",
+                    inputs={
+                        "page_id": page_id,
+                    },
+                    parent_id=None,
+                    children=[],
+                    order_index=idx,
+                )
+                roots.append(node)
+
+        return ActionPlan(
+            title=f"Edit Plan for {document_title}",
+            original_prompt=original_prompt,
+            roots=roots,
+        )
 
     async def _generate_outline(self, input: GeneratePlanInput) -> DocumentSpec:
         """Generate a document outline using the LLM."""
@@ -326,6 +544,89 @@ Generate the JSON outline:"""
         """Synchronous version of generate_plan."""
         import asyncio
         return asyncio.run(self.generate_plan(input))
+
+
+class GeminiPlanAdapter:
+    """
+    Google Gemini adapter for plan generation.
+
+    Uses the google-generativeai SDK to generate document plans.
+    """
+
+    def __init__(self, api_key: str, model: str = "gemini-2.0-flash") -> None:
+        """
+        Initialize the adapter.
+
+        Args:
+            api_key: Google API key
+            model: Gemini model to use
+        """
+        try:
+            import google.generativeai as genai
+            from google.generativeai.types import GenerationConfig
+
+            self._genai = genai
+            self._GenerationConfig = GenerationConfig
+        except ImportError:
+            raise ImportError(
+                "google-generativeai is required. Install with: pip install google-generativeai"
+            )
+
+        self._api_key = api_key
+        self._model_name = model
+        self._client = None
+
+    def _get_client(self):
+        """Get or create the Gemini client."""
+        if self._client is None:
+            self._genai.configure(api_key=self._api_key)
+            self._client = self._genai.GenerativeModel(
+                model_name=self._model_name,
+                generation_config=self._GenerationConfig(
+                    response_mime_type="application/json",
+                ),
+            )
+        return self._client
+
+    async def chat(
+        self,
+        messages: List[Dict[str, Any]],
+        tools: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Generate a plan using Gemini."""
+        import asyncio
+
+        # Build prompt from messages
+        prompt_parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                prompt_parts.append(f"Instructions:\n{content}\n")
+            elif role == "user":
+                prompt_parts.append(f"Request:\n{content}\n")
+
+        full_prompt = "\n".join(prompt_parts)
+
+        try:
+            client = self._get_client()
+
+            # Run synchronous API call in thread pool
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: client.generate_content(full_prompt),
+            )
+
+            raw_text = response.text if hasattr(response, "text") else ""
+
+            return {
+                "content": raw_text,
+                "finish_reason": "stop",
+            }
+
+        except Exception as e:
+            # Return error in a way the generator can handle
+            raise ValueError(f"Gemini API error: {str(e)}")
 
 
 class MockPlanLLM:

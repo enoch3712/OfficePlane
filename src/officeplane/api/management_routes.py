@@ -2,7 +2,7 @@
 FastAPI routes for OfficePlane Management System
 Instances, Tasks, History, Metrics, and WebSocket
 """
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Body
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Body, Response
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import asyncio
@@ -13,9 +13,12 @@ from prisma.enums import InstanceState, TaskState, TaskPriority, EventType
 from ..management.db import get_db
 from ..management.instance_manager import instance_manager
 from ..management.task_queue import task_queue
-from ..documents.importer import DocumentImporter
+from ..documents.models import DocumentModel
 from ..documents.store import DocumentStore
-from ..components.planning.generator import PlanGenerator, MockPlanLLM
+from ..ingestion.config import IngestionConfig
+from ..ingestion.format_detector import DocumentFormat, detect_format
+# VisionIngestionService and LibreOfficeDriver are imported lazily to avoid requiring PIL at startup
+from ..components.planning.generator import PlanGenerator, MockPlanLLM, GeminiPlanAdapter
 from ..components.planning.models import GeneratePlanInput, PlanSummary, ActionPlan, ActionNode
 from ..components.planning.display import PlanDisplayer
 from ..components.runner import OpenAIAdapter
@@ -80,6 +83,38 @@ def _format_outline_for_prompt(outline) -> str:
     return "\n".join(lines)
 
 
+def _serialize_document(document: DocumentModel) -> dict:
+    chapters = document.chapters or []
+    return {
+        "id": str(document.id),
+        "title": document.title,
+        "author": document.author,
+        "chapters": [
+            {
+                "id": str(ch.id),
+                "title": ch.title,
+                "order_index": ch.order_index,
+                "sections": [
+                    {
+                        "id": str(sec.id),
+                        "title": sec.title,
+                        "order_index": sec.order_index,
+                        "page_count": len(sec.pages) if sec.pages else 0,
+                    }
+                    for sec in (ch.sections or [])
+                ],
+            }
+            for ch in chapters
+        ],
+        "total_chapters": len(chapters),
+        "total_pages": sum(
+            len(sec.pages or [])
+            for ch in chapters
+            for sec in (ch.sections or [])
+        ),
+    }
+
+
 def _normalize_plan_for_existing_document(
     plan: ActionPlan,
     document_id: str,
@@ -134,8 +169,25 @@ def _normalize_plan_for_existing_document(
 
 
 def _build_plan_generator() -> PlanGenerator:
-    import os
+    """Build a PlanGenerator with the best available LLM.
 
+    Tries in order: Gemini (GOOGLE_API_KEY), OpenAI (OPENAI_API_KEY), MockPlanLLM (fallback).
+    """
+    import os
+    import logging
+
+    # Try Gemini first (used for vision ingestion, likely already configured)
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if google_key:
+        try:
+            model = os.getenv("OFFICEPLANE_PLAN_MODEL", "gemini-2.0-flash")
+            adapter = GeminiPlanAdapter(api_key=google_key, model=model)
+            logging.info(f"Using Gemini for plan generation (model: {model})")
+            return PlanGenerator(llm=adapter)
+        except Exception as e:
+            logging.warning(f"Failed to initialize Gemini adapter: {e}")
+
+    # Try OpenAI as fallback
     openai_key = os.getenv("OPENAI_API_KEY")
     if openai_key:
         try:
@@ -143,9 +195,13 @@ def _build_plan_generator() -> PlanGenerator:
 
             client = AsyncOpenAI(api_key=openai_key)
             model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            logging.info(f"Using OpenAI for plan generation (model: {model})")
             return PlanGenerator(llm=OpenAIAdapter(client, model=model))
-        except Exception:
-            return PlanGenerator(llm=MockPlanLLM())
+        except Exception as e:
+            logging.warning(f"Failed to initialize OpenAI adapter: {e}")
+
+    # Fallback to mock (for testing only)
+    logging.warning("No LLM API key found. Using MockPlanLLM (hardcoded responses).")
     return PlanGenerator(llm=MockPlanLLM())
 
 
@@ -219,7 +275,7 @@ async def upload_document(
     author: Optional[str] = None,
 ):
     """
-    Upload and import a Word document
+    Upload and import a Word or PDF document
 
     Parses the document structure (chapters, sections, pages) and stores it in the database.
     Returns the document with its full structure.
@@ -228,78 +284,110 @@ async def upload_document(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
-    if not file.filename.endswith(('.doc', '.docx')):
-        raise HTTPException(
-            status_code=400,
-            detail="Only .doc and .docx files are supported"
-        )
-
     try:
         # Read file contents
         contents = await file.read()
+
+        doc_format = detect_format(contents, file.filename)
+        if doc_format not in (DocumentFormat.DOC, DocumentFormat.DOCX, DocumentFormat.PDF):
+            raise HTTPException(
+                status_code=400,
+                detail="Only .doc, .docx, and .pdf files are supported",
+            )
 
         # Create document store with database URL
         import os
         database_url = os.getenv("DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane")
         doc_store = DocumentStore(database_url=database_url)
 
-        # Connect to database
-        await doc_store.connect()
+        try:
+            # Lazy import to avoid requiring PIL at startup
+            from ..ingestion.ingestion_service import VisionIngestionService
+            from ..drivers.libreoffice_driver import LibreOfficeDriver
 
-        # Create importer
-        importer = DocumentImporter(doc_store=doc_store)
+            ingestion_config = IngestionConfig()
+            try:
+                ingestion_config.validate()
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        # Import document
-        document = await importer.import_from_bytes(
-            docx_bytes=contents,
-            title=title or file.filename.replace('.docx', '').replace('.doc', ''),
-            author=author,
-            index_for_search=True,  # Enable search indexing
-        )
+            # Use LibreOffice driver for DOCX->PDF conversion
+            driver = LibreOfficeDriver() if doc_format in (DocumentFormat.DOC, DocumentFormat.DOCX) else None
 
-        # Get full document with structure
-        full_document = await doc_store.get_document(
-            document.id,
-            load_children=True  # Load chapters, sections, pages
-        )
+            ingestion_service = VisionIngestionService(
+                driver=driver,
+                doc_store=doc_store,
+                config=ingestion_config,
+            )
+            result = await ingestion_service.ingest(
+                data=contents,
+                filename=file.filename,
+            )
 
-        # Broadcast event
-        await broadcast_event("document_uploaded", {
-            "id": str(document.id),
-            "title": document.title,
-            "author": document.author,
-            "filename": file.filename,
-        })
+            if not result.success or result.document is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error ingesting document: {result.error or 'Unknown error'}",
+                )
 
-        return {
-            "id": str(full_document.id),
-            "title": full_document.title,
-            "author": full_document.author,
-            "chapters": [
+            full_document = result.document
+
+            if not full_document:
+                raise HTTPException(status_code=500, detail="Failed to load document structure")
+
+            if title or author:
+                updated = await doc_store.update_document(
+                    full_document.id,
+                    title=title,
+                    author=author,
+                )
+                if updated:
+                    full_document.title = updated.title
+                    full_document.author = updated.author
+
+            # Store the original file bytes for download using raw SQL
+            # (Prisma Python client has issues with Bytes serialization)
+            try:
+                import asyncpg
+                conn = await asyncpg.connect(database_url)
+                try:
+                    await conn.execute(
+                        """
+                        UPDATE documents
+                        SET source_file = $1,
+                            source_format = $2,
+                            file_name = $3
+                        WHERE id = $4
+                        """,
+                        contents,
+                        doc_format.value,
+                        file.filename,
+                        full_document.id,
+                    )
+                finally:
+                    await conn.close()
+            except Exception as e:
+                # Log but don't fail the upload if source file storage fails
+                import logging
+                logging.error(f"Failed to store source file: {e}")
+
+            # Broadcast event
+            await broadcast_event(
+                "document_uploaded",
                 {
-                    "id": str(ch.id),
-                    "title": ch.title,
-                    "order_index": ch.order_index,
-                    "sections": [
-                        {
-                            "id": str(sec.id),
-                            "title": sec.title,
-                            "order_index": sec.order_index,
-                            "page_count": len(sec.pages) if sec.pages else 0,
-                        }
-                        for sec in (ch.sections or [])
-                    ],
-                }
-                for ch in (full_document.chapters or [])
-            ],
-            "total_chapters": len(full_document.chapters or []),
-            "total_pages": sum(
-                len(sec.pages or [])
-                for ch in (full_document.chapters or [])
-                for sec in (ch.sections or [])
-            ),
-        }
+                    "id": str(full_document.id),
+                    "title": full_document.title,
+                    "author": full_document.author,
+                    "filename": file.filename,
+                },
+            )
 
+            return _serialize_document(full_document)
+        finally:
+            await doc_store.close()
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -414,6 +502,181 @@ async def delete_document(document_id: str):
     return {"status": "deleted", "id": document_id}
 
 
+@router.get("/documents/{document_id}/download")
+async def download_document(document_id: str, format: str = "original"):
+    """
+    Download a document.
+
+    Args:
+        document_id: Document to download
+        format: Output format - "original" (default), "docx", or "markdown"
+            - "original": Returns the original uploaded file (preserves formatting)
+            - "docx": Generates a new DOCX from parsed content
+            - "markdown": Exports as Markdown
+
+    Returns:
+        File download response
+    """
+    import os
+    import tempfile
+    from uuid import UUID
+
+    if format not in ("original", "docx", "markdown", "md"):
+        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}. Use 'original', 'docx', or 'markdown'.")
+
+    # First, check if we have the original file stored
+    db = await get_db()
+    db_doc = await db.document.find_unique(where={"id": document_id})
+
+    if not db_doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    safe_title = db_doc.title.replace(" ", "_").replace("/", "_")
+    original_filename = db_doc.fileName or f"{safe_title}.docx"
+
+    # Return original file if requested and available
+    if format == "original":
+        if db_doc.sourceFile:
+            # Determine content type from source format
+            content_type = "application/octet-stream"
+            if db_doc.sourceFormat == "docx":
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif db_doc.sourceFormat == "pdf":
+                content_type = "application/pdf"
+            elif db_doc.sourceFormat == "doc":
+                content_type = "application/msword"
+
+            # Use asyncpg directly to get raw bytes (Prisma has issues with bytea)
+            import os
+            import asyncpg
+            database_url = os.getenv(
+                "DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane"
+            )
+            conn = await asyncpg.connect(database_url)
+            try:
+                row = await conn.fetchrow(
+                    "SELECT source_file FROM documents WHERE id = $1",
+                    db_doc.id,
+                )
+                if row and row['source_file']:
+                    file_bytes = row['source_file']
+                else:
+                    # Fallback to generating DOCX
+                    format = "docx"
+                    file_bytes = None
+            finally:
+                await conn.close()
+
+            if file_bytes:
+                return Response(
+                    content=file_bytes,
+                    media_type=content_type,
+                    headers={
+                        "Content-Disposition": f'attachment; filename="{original_filename}"'
+                    }
+                )
+        else:
+            # No original file, fall back to generating DOCX
+            format = "docx"
+
+    database_url = os.getenv(
+        "DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane"
+    )
+    doc_store = DocumentStore(database_url=database_url)
+    await doc_store.connect()
+
+    try:
+        doc = await doc_store.get_document(UUID(document_id), load_children=True)
+
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        if format in ("markdown", "md"):
+            # Export as Markdown
+            from officeplane.documents.exporter import DocumentExporter
+            exporter = DocumentExporter(doc_store=doc_store)
+            content = await exporter.export_to_markdown(UUID(document_id))
+
+            return Response(
+                content=content,
+                media_type="text/markdown",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_title}.md"'
+                }
+            )
+
+        else:
+            # Export as DOCX (generated from parsed content)
+            try:
+                from docx import Document as DocxDocument
+                from docx.shared import Pt
+                from docx.enum.text import WD_ALIGN_PARAGRAPH
+            except ImportError:
+                raise HTTPException(
+                    status_code=500,
+                    detail="python-docx not installed. Install with: pip install python-docx"
+                )
+
+            # Create DOCX document
+            docx = DocxDocument()
+
+            # Title page
+            title_para = docx.add_paragraph()
+            title_run = title_para.add_run(doc.title)
+            title_run.bold = True
+            title_run.font.size = Pt(28)
+            title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+            if doc.author:
+                author_para = docx.add_paragraph()
+                author_run = author_para.add_run(f"by {doc.author}")
+                author_run.font.size = Pt(14)
+                author_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+            docx.add_page_break()
+
+            # Content
+            for chapter in (doc.chapters or []):
+                docx.add_heading(chapter.title, level=1)
+
+                if chapter.summary:
+                    summary_para = docx.add_paragraph()
+                    summary_para.add_run(chapter.summary).italic = True
+
+                for section in (chapter.sections or []):
+                    docx.add_heading(section.title, level=2)
+
+                    for page in (section.pages or []):
+                        if page.content:
+                            # Split by paragraphs and add each
+                            for para_text in page.content.split("\n\n"):
+                                para_text = para_text.strip()
+                                if para_text:
+                                    docx.add_paragraph(para_text)
+
+            # Save to bytes
+            with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
+                docx.save(tmp.name)
+                tmp_path = tmp.name
+
+            try:
+                with open(tmp_path, "rb") as f:
+                    docx_bytes = f.read()
+            finally:
+                os.unlink(tmp_path)
+
+            return Response(
+                content=docx_bytes,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_title}.docx"'
+                }
+            )
+
+    finally:
+        await doc_store.close()
+
+
 @router.post("/documents/{document_id}/plan")
 async def plan_document(document_id: str, request: PlanDocumentRequest = Body(...)):
     """Generate an action plan for editing an existing document."""
@@ -432,37 +695,20 @@ async def plan_document(document_id: str, request: PlanDocumentRequest = Body(..
             raise HTTPException(status_code=404, detail="Document not found")
 
         outline_text = _format_outline_for_prompt(outline)
-        prompt = (
-            "You are planning edits for an existing document.\n"
-            "Use the outline below as immutable existing structure.\n"
-            "Only propose new chapters/sections/pages to add unless the user explicitly requests edits or deletions.\n"
-            "If edits/deletions are requested, reference existing IDs from the outline.\n"
-            "Return a plan that can be executed with actions: add_chapter, add_section, write_page, edit_page, delete_page.\n\n"
-            f"Document outline:\n{outline_text}\n\n"
-            f"User request:\n{request.prompt}"
+
+        # Use the new edit plan generator
+        generator = _build_plan_generator()
+        result = await generator.generate_edit_plan(
+            document_outline=outline_text,
+            user_request=request.prompt,
+            document_id=document_id,
+            document_title=outline.title,
         )
 
-        generator = _build_plan_generator()
-        plan_input = GeneratePlanInput(
-            prompt=prompt,
-            max_chapters=request.max_chapters,
-            max_sections_per_chapter=request.max_sections_per_chapter,
-            max_pages_per_section=request.max_pages_per_section,
-            include_content_outlines=request.include_content_outlines,
-        )
-        result = await generator.generate_plan(plan_input)
         if not result.success:
             raise HTTPException(status_code=500, detail=result.error or "Plan generation failed")
 
-        existing_titles = {ch.title for ch in outline.chapters}
-        normalized_plan = _normalize_plan_for_existing_document(
-            result.plan,
-            document_id=document_id,
-            title=outline.title,
-            existing_chapter_titles=existing_titles,
-        )
-
-        summary = PlanSummary.from_plan(normalized_plan)
+        summary = PlanSummary.from_plan(result.plan)
         return {
             "document": {
                 "id": str(outline.id),
@@ -473,8 +719,245 @@ async def plan_document(document_id: str, request: PlanDocumentRequest = Body(..
                 "page_count": outline.page_count,
             },
             "plan": summary.model_dump(),
-            "tree": PlanDisplayer.to_json(normalized_plan, include_inputs=True),
+            "tree": PlanDisplayer.to_json(result.plan, include_inputs=True),
         }
+    finally:
+        await doc_store.close()
+
+
+class ExecutePlanRequest(BaseModel):
+    """Request body for executing a plan."""
+    tree: Dict[str, Any]  # The tree from plan response
+
+
+class VerifyRequest(BaseModel):
+    """Request body for verifying changes."""
+    original_request: str  # What the user asked for
+    expected_changes: Optional[List[str]] = None  # Specific things to check for
+
+
+@router.post("/documents/{document_id}/execute")
+async def execute_plan(document_id: str, request: ExecutePlanRequest = Body(...)):
+    """
+    Execute an action plan on a document.
+
+    Takes the tree structure from the /plan response and executes each action.
+    """
+    import os
+    from officeplane.components.planning.models import ActionNode, ActionPlan
+    from officeplane.components.planning.executor import PlanExecutor
+
+    database_url = os.getenv(
+        "DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane"
+    )
+    doc_store = DocumentStore(database_url=database_url)
+    await doc_store.connect()
+
+    try:
+        # Reconstruct ActionPlan from the tree
+        def build_node(node_data: Dict[str, Any]) -> ActionNode:
+            children = [build_node(c) for c in node_data.get("children", [])]
+            return ActionNode(
+                id=node_data.get("id", f"node_{len(children)}"),
+                action_name=node_data.get("action", ""),
+                description=node_data.get("description", ""),
+                inputs=node_data.get("inputs", {}),
+                children=children,
+                status=node_data.get("status", "pending"),
+            )
+
+        roots = [build_node(n) for n in request.tree.get("tree", [])]
+
+        plan = ActionPlan(
+            title=f"Execution for document {document_id}",
+            original_prompt="",
+            roots=roots,
+        )
+
+        # Track progress for response
+        progress_log: List[Dict[str, Any]] = []
+
+        def on_start(node: ActionNode):
+            progress_log.append({
+                "node_id": node.id,
+                "action": node.action_name,
+                "status": "running",
+            })
+
+        def on_complete(node: ActionNode, output: Dict[str, Any]):
+            progress_log.append({
+                "node_id": node.id,
+                "action": node.action_name,
+                "status": "completed",
+                "output": output,
+            })
+
+        def on_failed(node: ActionNode, error: str):
+            progress_log.append({
+                "node_id": node.id,
+                "action": node.action_name,
+                "status": "failed",
+                "error": error,
+            })
+
+        executor = PlanExecutor(
+            doc_store=doc_store,
+            on_node_start=on_start,
+            on_node_complete=on_complete,
+            on_node_failed=on_failed,
+        )
+
+        result = await executor.execute(plan)
+
+        # Broadcast update
+        await broadcast_event("plan_executed", {
+            "document_id": document_id,
+            "success": result["success"],
+            "completed": result["completed"],
+            "failed": result["failed"],
+        })
+
+        return {
+            "success": result["success"],
+            "completed": result["completed"],
+            "failed": result["failed"],
+            "total": result["total"],
+            "progress": progress_log,
+            "errors": result.get("errors", {}),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Execution failed: {str(e)}")
+
+    finally:
+        await doc_store.close()
+
+
+@router.post("/documents/{document_id}/verify")
+async def verify_changes(document_id: str, request: VerifyRequest = Body(...)):
+    """
+    Verify that changes were applied correctly to a document.
+
+    Uses AI to check if the document content matches the original request.
+    Returns a verification report with pass/fail status and details.
+    """
+    import os
+    from uuid import UUID
+
+    database_url = os.getenv(
+        "DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane"
+    )
+    doc_store = DocumentStore(database_url=database_url)
+    await doc_store.connect()
+
+    try:
+        # Get full document with content
+        doc = await doc_store.get_document(UUID(document_id), load_children=True)
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Build document content summary for verification
+        content_summary = []
+        for chapter in (doc.chapters or []):
+            chapter_info = {
+                "title": chapter.title,
+                "sections": []
+            }
+            for section in (chapter.sections or []):
+                section_info = {
+                    "title": section.title,
+                    "pages": []
+                }
+                for page in (section.pages or []):
+                    section_info["pages"].append({
+                        "page_number": page.page_number,
+                        "content_preview": (page.content or "")[:500]
+                    })
+                chapter_info["sections"].append(section_info)
+            content_summary.append(chapter_info)
+
+        # Use LLM to verify changes
+        generator = _build_plan_generator()
+
+        verify_prompt = f"""You are a document verification assistant. Check if the document was updated correctly.
+
+Original user request:
+"{request.original_request}"
+
+Current document structure and content:
+{json.dumps(content_summary, indent=2)}
+
+{f"Expected changes to verify: {request.expected_changes}" if request.expected_changes else ""}
+
+Analyze the document and determine:
+1. Was the user's request fulfilled?
+2. Can you find the expected content/changes?
+3. Are there any issues?
+
+Respond with a JSON object:
+{{
+    "verified": true/false,
+    "confidence": 0.0-1.0,
+    "findings": [
+        {{"check": "description of what was checked", "passed": true/false, "details": "explanation"}}
+    ],
+    "summary": "Brief summary of verification results",
+    "suggestions": ["Any suggestions for fixes if verification failed"]
+}}
+
+Respond with ONLY the JSON, no additional text."""
+
+        messages = [
+            {"role": "user", "content": verify_prompt},
+        ]
+
+        response = await generator.llm.chat(messages, tools=[])
+        content = response.get("content", "")
+
+        if not content:
+            raise HTTPException(status_code=500, detail="Verification LLM returned empty response")
+
+        # Parse verification result
+        try:
+            # Handle markdown code blocks
+            if "```json" in content:
+                start = content.find("```json") + 7
+                end = content.find("```", start)
+                if end > start:
+                    content = content[start:end].strip()
+            elif "```" in content:
+                start = content.find("```") + 3
+                end = content.find("```", start)
+                if end > start:
+                    content = content[start:end].strip()
+
+            verification_result = json.loads(content)
+        except json.JSONDecodeError as e:
+            verification_result = {
+                "verified": False,
+                "confidence": 0.0,
+                "findings": [{"check": "JSON parsing", "passed": False, "details": f"Failed to parse LLM response: {e}"}],
+                "summary": "Verification could not be completed due to parsing error",
+                "suggestions": ["Try running verification again"],
+                "raw_response": content[:500]
+            }
+
+        return {
+            "document_id": document_id,
+            "document_title": doc.title,
+            "original_request": request.original_request,
+            "verification": verification_result,
+            "document_stats": {
+                "chapters": len(doc.chapters or []),
+                "sections": sum(len(ch.sections or []) for ch in (doc.chapters or [])),
+                "pages": sum(
+                    len(sec.pages or [])
+                    for ch in (doc.chapters or [])
+                    for sec in (ch.sections or [])
+                ),
+            }
+        }
+
     finally:
         await doc_store.close()
 
@@ -609,10 +1092,10 @@ async def get_metrics():
     active_count = 0
 
     for inst in instances:
-        state = inst.state.value
+        state = inst.state  # state is already a string from the database
         instances_by_state[state] = instances_by_state.get(state, 0) + 1
 
-        if inst.state in [InstanceState.OPEN, InstanceState.IDLE, InstanceState.IN_USE]:
+        if state in [InstanceState.OPEN.value, InstanceState.IDLE.value, InstanceState.IN_USE.value]:
             active_count += 1
             if inst.memoryMb:
                 total_memory += inst.memoryMb
@@ -627,15 +1110,15 @@ async def get_metrics():
     failed_count = 0
 
     for task in tasks:
-        state = task.state.value
+        state = task.state  # state is already a string from the database
         tasks_by_state[state] = tasks_by_state.get(state, 0) + 1
 
-        if task.state == TaskState.COMPLETED and task.startedAt and task.completedAt:
+        if state == TaskState.COMPLETED.value and task.startedAt and task.completedAt:
             duration = (task.completedAt - task.startedAt).total_seconds() * 1000
             total_duration += duration
             completed_count += 1
 
-        if task.state == TaskState.FAILED:
+        if state == TaskState.FAILED.value:
             failed_count += 1
 
     avg_duration_ms = total_duration / completed_count if completed_count > 0 else 0

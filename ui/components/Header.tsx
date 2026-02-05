@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { FileText, Activity, Plus, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FileUploadDialog } from '@/components/FileUploadDialog'
+import { useToast } from '@/components/ui/toast'
 
 interface HeaderProps {
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error'
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export function Header({ connectionStatus }: HeaderProps) {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
+  const { addToast } = useToast()
 
   const statusColors = {
     connecting: 'bg-warning',
@@ -66,19 +68,31 @@ export function Header({ connectionStatus }: HeaderProps) {
       const instance = await instanceResponse.json()
       console.log('Instance created successfully:', instance)
 
-      // Show success message (you can add a toast notification here)
-      alert(
-        `Document "${document.title}" uploaded and instance created!\n\nChapters: ${document.total_chapters}\nPages: ${document.total_pages}\nInstance ID: ${instance.id}`
-      )
+      // Show success toast
+      addToast({
+        type: 'document',
+        title: 'Document uploaded successfully',
+        description: `"${document.title}" is ready`,
+        details: [
+          { label: 'Chapters', value: document.total_chapters },
+          { label: 'Pages', value: document.total_pages },
+        ],
+        duration: 6000,
+      })
     } catch (error) {
       console.error('Upload error:', error)
-      alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      addToast({
+        type: 'error',
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        duration: 8000,
+      })
     }
   }
 
   return (
     <>
-      <header className="bg-card/95 backdrop-blur-sm border-b border-border sticky top-0 z-40 shadow-sm">
+      <header className="bg-card/95 border-b border-border sticky top-0 z-40 shadow-sm">
         <div className="max-w-[1800px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
