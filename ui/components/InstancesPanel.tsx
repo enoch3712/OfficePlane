@@ -49,12 +49,12 @@ export function InstancesPanel() {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white/[0.02] rounded-lg shadow p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-48" />
+          <div className="h-6 bg-white/10 rounded w-48" />
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-100 rounded" />
+              <div key={i} className="h-20 bg-white/5 rounded" />
             ))}
           </div>
         </div>
@@ -63,11 +63,11 @@ export function InstancesPanel() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow flex flex-col h-[600px]">
-      <div className="p-6 border-b border-gray-200">
+    <div className="bg-white/[0.02] rounded-lg shadow flex flex-col h-[600px]">
+      <div className="p-6 border-b border-white/10">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Document Instances</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-white">Document Instances</h2>
+          <p className="text-sm text-slate-500">
             {activeInstances?.length || 0} active of {instances?.length || 0} total
           </p>
         </div>
@@ -75,7 +75,7 @@ export function InstancesPanel() {
 
       <div className="flex-1 overflow-y-auto p-6">
         {!instances || instances.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+          <div className="flex flex-col items-center justify-center h-full text-slate-500">
             <FileText className="w-16 h-16 mb-4" />
             <p className="text-sm">No document instances</p>
           </div>
@@ -84,40 +84,40 @@ export function InstancesPanel() {
             {instances.map((instance) => (
               <div
                 key={instance.id}
-                className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-sm transition-all"
+                className="p-4 border border-white/10 rounded-lg hover:border-[#39ff14]/30 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-gray-600" />
-                      <span className="font-medium text-gray-900">
+                      <FileText className="w-4 h-4 text-slate-400" />
+                      <span className="font-medium text-white">
                         {instance.document?.title || 'Standalone Instance'}
                       </span>
                       {getStateBadge(instance.state)}
                     </div>
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <div className="text-gray-500">
-                        Driver: <span className="text-gray-900">{instance.driverType}</span>
+                      <div className="text-slate-500">
+                        Driver: <span className="text-white">{instance.driverType}</span>
                       </div>
-                      <div className="text-gray-500">
-                        PID: <span className="text-gray-900">{instance.processPid || 'N/A'}</span>
+                      <div className="text-slate-500">
+                        PID: <span className="text-white">{instance.processPid || 'N/A'}</span>
                       </div>
                       {instance.lastUsedAt && (
-                        <div className="text-gray-500 flex items-center gap-1">
+                        <div className="text-slate-500 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           Last used <TimeAgo date={instance.lastUsedAt} />
                         </div>
                       )}
                       {instance.memoryMb && (
-                        <div className="text-gray-500">
-                          Memory: <span className="text-gray-900">{instance.memoryMb} MB</span>
+                        <div className="text-slate-500">
+                          Memory: <span className="text-white">{instance.memoryMb} MB</span>
                         </div>
                       )}
                     </div>
 
                     {instance.stateMessage && (
-                      <div className="mt-2 text-xs text-error-600 bg-error-50 px-2 py-1 rounded">
+                      <div className="mt-2 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded">
                         {instance.stateMessage}
                       </div>
                     )}
@@ -129,7 +129,7 @@ export function InstancesPanel() {
                       <button
                         onClick={() => closeMutation.mutate(instance.id)}
                         disabled={closeMutation.isPending}
-                        className="p-2 text-warning-600 hover:bg-warning-50 rounded transition-colors"
+                        className="p-2 text-amber-400 hover:bg-amber-500/10 rounded transition-colors"
                         title="Close instance"
                       >
                         <StopCircle className="w-4 h-4" />
@@ -141,7 +141,7 @@ export function InstancesPanel() {
                       <button
                         onClick={() => deleteMutation.mutate(instance.id)}
                         disabled={deleteMutation.isPending}
-                        className="p-2 text-error-600 hover:bg-error-50 rounded transition-colors"
+                        className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
                         title="Delete instance"
                       >
                         <Trash2 className="w-4 h-4" />
