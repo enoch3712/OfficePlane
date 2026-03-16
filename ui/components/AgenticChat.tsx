@@ -60,13 +60,13 @@ const formatActionLabel = (node: PlanActionNode) => {
 const getStatusStyle = (status?: string) => {
   switch (status) {
     case 'completed':
-      return 'bg-green-100 text-green-700 border-green-200'
+      return 'bg-green-500/10 text-green-400 border-green-500/20'
     case 'failed':
-      return 'bg-red-100 text-red-700 border-red-200'
+      return 'bg-red-500/10 text-red-400 border-red-500/20'
     case 'running':
-      return 'bg-blue-100 text-blue-700 border-blue-200'
+      return 'bg-blue-500/10 text-blue-400 border-blue-500/20'
     default:
-      return 'bg-gray-100 text-gray-600 border-gray-200'
+      return 'bg-white/5 text-slate-400 border-white/10'
   }
 }
 
@@ -162,13 +162,13 @@ const renderNode = (node: PlanActionNode, depth = 0) => {
   return (
     <div key={node.id} className="space-y-2" style={{ marginLeft: depth * 12 }}>
       <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
-        isCompleted ? 'border-green-200 bg-green-50' :
-        isFailed ? 'border-red-200 bg-red-50' :
-        'border-gray-200 bg-white'
+        isCompleted ? 'border-green-500/20 bg-green-500/10' :
+        isFailed ? 'border-red-500/20 bg-red-500/10' :
+        'border-white/10 bg-white/[0.02]'
       }`}>
-        {isCompleted && <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />}
-        {isFailed && <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />}
-        <span className={`font-medium ${isCompleted ? 'text-green-800' : isFailed ? 'text-red-800' : 'text-gray-800'}`}>
+        {isCompleted && <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />}
+        {isFailed && <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />}
+        <span className={`font-medium ${isCompleted ? 'text-green-400' : isFailed ? 'text-red-400' : 'text-white'}`}>
           {formatActionLabel(node)}
         </span>
         {node.status && (
@@ -178,14 +178,14 @@ const renderNode = (node: PlanActionNode, depth = 0) => {
         )}
       </div>
       {node.description && (
-        <div className="text-xs text-gray-500 px-3">{node.description}</div>
+        <div className="text-xs text-slate-500 px-3">{node.description}</div>
       )}
       {inputEntries.length > 0 && (
         <div className="flex flex-wrap gap-2 px-3">
           {inputEntries.map(([key, value]) => (
             <span
               key={`${node.id}-${key}`}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+              className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-slate-400"
             >
               {key}: {String(value)}
             </span>
@@ -403,15 +403,15 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-200 px-6 py-4">
+    <div className="rounded-xl border border-white/10 bg-white/[0.02] shadow-sm">
+      <div className="border-b border-white/10 px-6 py-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-orange-500" />
-              <h3 className="text-lg font-semibold text-gray-900">Agentic Chat</h3>
+              <Sparkles className="h-4 w-4 text-[#39ff14]" />
+              <h3 className="text-lg font-semibold text-white">Agentic Chat</h3>
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               Run document operations as structured agent actions.
             </p>
           </div>
@@ -419,18 +419,18 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
             <select
               value={action}
               onChange={(event) => setAction(event.target.value as ChatAction)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#39ff14]/30"
             >
               <option value="planning">Agentic Planning</option>
             </select>
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-gray-400" />
+              <FileText className="h-4 w-4 text-slate-500" />
               <select
                 value={localDocumentId || ''}
                 onChange={(event) =>
                   setLocalDocumentId(event.target.value || undefined)
                 }
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#39ff14]/30"
               >
                 <option value="">Select a document</option>
                 {documents?.map((doc) => (
@@ -443,8 +443,8 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
           </div>
         </div>
         {activeDocument && (
-          <div className="mt-3 text-xs text-gray-500">
-            Active: <span className="font-medium text-gray-700">{activeDocument.title}</span>
+          <div className="mt-3 text-xs text-slate-500">
+            Active: <span className="font-medium text-slate-200">{activeDocument.title}</span>
             {activeDocument.author ? ` · ${activeDocument.author}` : ''}
           </div>
         )}
@@ -460,7 +460,7 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
 
       <div className="flex flex-col gap-4 px-6 py-4">
         <div className="flex items-start gap-3">
-          <div className="rounded-full bg-orange-100 p-2 text-orange-600">
+          <div className="rounded-full bg-[#39ff14]/10 p-2 text-[#39ff14]">
             <User className="h-4 w-4" />
           </div>
           <div className="flex-1">
@@ -468,10 +468,10 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               placeholder="Describe the action you want to plan or execute."
-              className="min-h-[96px] w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="min-h-[96px] w-full resize-y rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#39ff14]/30"
             />
             <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-slate-500">
                 {requiresDocument && !localDocumentId
                   ? 'Select a document first.'
                   : 'Ready to run.'}
@@ -479,7 +479,7 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
               <button
                 onClick={handleSubmit}
                 disabled={!prompt.trim() || (requiresDocument && !localDocumentId) || isRunning}
-                className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-orange-300"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#39ff14] px-4 py-2 text-sm font-medium text-[#060a14] shadow-sm transition hover:bg-[#39ff14]/90 disabled:cursor-not-allowed disabled:bg-[#39ff14]/30"
               >
                 {isRunning ? (
                   <>
@@ -503,35 +503,35 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
               key={message.id}
               className={`rounded-xl border px-4 py-3 ${
                 message.role === 'error'
-                  ? 'border-red-200 bg-red-50 text-red-700'
+                  ? 'border-red-500/20 bg-red-500/10 text-red-400'
                   : message.role === 'execution'
                   ? message.executionResult?.success
-                    ? 'border-green-200 bg-green-50 text-green-700'
-                    : 'border-yellow-200 bg-yellow-50 text-yellow-700'
+                    ? 'border-green-500/20 bg-green-500/10 text-green-400'
+                    : 'border-yellow-500/20 bg-yellow-500/10 text-yellow-400'
                   : message.role === 'verification'
                   ? message.verificationResult?.verified
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                    : 'border-amber-200 bg-amber-50 text-amber-700'
-                  : 'border-gray-200 bg-gray-50 text-gray-800'
+                    ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                    : 'border-amber-500/20 bg-amber-500/10 text-amber-400'
+                  : 'border-white/10 bg-white/[0.03] text-white'
               }`}
             >
               <div className="flex items-center gap-2 text-sm font-medium">
                 {message.role === 'assistant' ? (
-                  <Bot className="h-4 w-4 text-orange-500" />
+                  <Bot className="h-4 w-4 text-[#39ff14]" />
                 ) : message.role === 'execution' ? (
                   message.executionResult?.success ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <CheckCircle className="h-4 w-4 text-green-400" />
                   ) : (
-                    <XCircle className="h-4 w-4 text-yellow-500" />
+                    <XCircle className="h-4 w-4 text-yellow-400" />
                   )
                 ) : message.role === 'verification' ? (
                   message.verificationResult?.verified ? (
-                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                    <ShieldCheck className="h-4 w-4 text-emerald-400" />
                   ) : (
-                    <RefreshCw className="h-4 w-4 text-amber-500" />
+                    <RefreshCw className="h-4 w-4 text-amber-400" />
                   )
                 ) : (
-                  <User className="h-4 w-4 text-gray-500" />
+                  <User className="h-4 w-4 text-slate-500" />
                 )}
                 <span className="capitalize">
                   {message.role === 'execution' ? 'Execution Result' :
@@ -539,7 +539,7 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                    message.role}
                 </span>
                 {message.actionLabel && (
-                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-600">
+                  <span className="rounded-full bg-[#39ff14]/10 px-2 py-0.5 text-xs text-[#39ff14]">
                     {message.actionLabel}
                   </span>
                 )}
@@ -591,7 +591,7 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                         link.click()
                         document.body.removeChild(link)
                       }}
-                      className="inline-flex items-center gap-2 rounded-lg bg-gray-400 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-500"
+                      className="inline-flex items-center gap-2 rounded-lg bg-slate-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-500"
                     >
                       <Download className="h-4 w-4" />
                       Download Original
@@ -606,7 +606,7 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                         link.click()
                         document.body.removeChild(link)
                       }}
-                      className="inline-flex items-center gap-2 rounded-lg bg-gray-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-600"
+                      className="inline-flex items-center gap-2 rounded-lg bg-slate-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-slate-400"
                     >
                       <Download className="h-4 w-4" />
                       Download Markdown
@@ -622,8 +622,8 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
                       message.verificationResult.verified
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-amber-100 text-amber-700'
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : 'bg-amber-500/10 text-amber-400'
                     }`}>
                       {message.verificationResult.verified ? (
                         <CheckCircle2 className="h-3 w-3" />
@@ -632,34 +632,34 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                       )}
                       {message.verificationResult.verified ? 'Verified' : 'Needs Attention'}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-slate-500">
                       Confidence: {Math.round(message.verificationResult.confidence * 100)}%
                     </span>
                   </div>
 
                   {/* Findings */}
                   <div className="space-y-2">
-                    <div className="text-xs font-semibold text-gray-500 uppercase">Findings</div>
+                    <div className="text-xs font-semibold text-slate-500 uppercase">Findings</div>
                     {message.verificationResult.findings.map((finding, idx) => (
                       <div
                         key={idx}
                         className={`rounded-lg border p-3 text-sm ${
                           finding.passed
-                            ? 'border-green-200 bg-green-50'
-                            : 'border-red-200 bg-red-50'
+                            ? 'border-green-500/20 bg-green-500/10'
+                            : 'border-red-500/20 bg-red-500/10'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           {finding.passed ? (
-                            <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                            <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
                           ) : (
-                            <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                            <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
                           )}
-                          <span className={`font-medium ${finding.passed ? 'text-green-800' : 'text-red-800'}`}>
+                          <span className={`font-medium ${finding.passed ? 'text-green-400' : 'text-red-400'}`}>
                             {finding.check}
                           </span>
                         </div>
-                        <p className={`mt-1 text-xs ${finding.passed ? 'text-green-700' : 'text-red-700'}`}>
+                        <p className={`mt-1 text-xs ${finding.passed ? 'text-green-400' : 'text-red-400'}`}>
                           {finding.details}
                         </p>
                       </div>
@@ -669,8 +669,8 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                   {/* Suggestions if verification failed */}
                   {!message.verificationResult.verified && message.verificationResult.suggestions && message.verificationResult.suggestions.length > 0 && (
                     <div className="space-y-2">
-                      <div className="text-xs font-semibold text-gray-500 uppercase">Suggestions</div>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-amber-700">
+                      <div className="text-xs font-semibold text-slate-500 uppercase">Suggestions</div>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-amber-400">
                         {message.verificationResult.suggestions.map((suggestion, idx) => (
                           <li key={idx}>{suggestion}</li>
                         ))}
@@ -691,25 +691,25 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
 
               {message.plan && (
                 <div className="mt-4 space-y-4">
-                  <div className="rounded-lg border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+                  <div className="rounded-lg border border-[#39ff14]/20 bg-[#39ff14]/10 px-4 py-3 text-sm text-[#39ff14]">
                     <div className="font-medium">{message.plan.plan.title}</div>
-                    <div className="mt-1 text-xs text-orange-600">
+                    <div className="mt-1 text-xs text-[#39ff14]">
                       {message.plan.plan.total_actions} actions · {message.plan.plan.chapters} chapters ·{' '}
                       {message.plan.plan.sections} sections · {message.plan.plan.pages} pages
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-gray-200 bg-white p-3">
-                    <div className="text-xs font-semibold text-gray-500 uppercase">
+                  <div className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                    <div className="text-xs font-semibold text-slate-500 uppercase">
                       Plan Tree
                     </div>
-                    <pre className="mt-2 whitespace-pre-wrap text-xs text-gray-700">
+                    <pre className="mt-2 whitespace-pre-wrap text-xs text-slate-200">
                       {message.plan.plan.tree_visualization}
                     </pre>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-xs font-semibold text-gray-500 uppercase">
+                    <div className="text-xs font-semibold text-slate-500 uppercase">
                       Actions
                     </div>
                     {message.plan.tree.tree.map((node) => renderNode(node))}
@@ -742,7 +742,7 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
           ))}
 
           {messages.length === 0 && (
-            <div className="rounded-lg border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
+            <div className="rounded-lg border border-dashed border-white/10 px-4 py-6 text-center text-sm text-slate-500">
               No activity yet. Pick an action and send a request to start the chat.
             </div>
           )}

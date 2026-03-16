@@ -1,0 +1,39 @@
+[ 4389453ms] Error: pricing is not defined
+    at LandingPage (rsc://React/Server/webpack-internal:///(rsc)/./app/page.tsx?0:2221:43)
+    at resolveErrorDev (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1792:63)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2071:17)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2059:7)
+    at progress (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2262:17)
+[ 4389478ms] Error: pricing is not defined
+    at LandingPage (rsc://React/Server/webpack-internal:///(rsc)/./app/page.tsx?0:2221:43)
+    at resolveErrorDev (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1792:63)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2071:17)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2059:7)
+    at progress (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2262:17)
+[ 4389480ms] Error: pricing is not defined
+    at LandingPage (rsc://React/Server/webpack-internal:///(rsc)/./app/page.tsx?0:2221:43)
+    at resolveErrorDev (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1792:63)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2071:17)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2059:7)
+    at progress (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2262:17)
+[ 4389480ms] Error: pricing is not defined
+    at LandingPage (rsc://React/Server/webpack-internal:///(rsc)/./app/page.tsx?0:2221:43)
+    at resolveErrorDev (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1792:63)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2071:17)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2059:7)
+    at progress (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2262:17)
+[ 4389481ms] Error: pricing is not defined
+    at LandingPage (rsc://React/Server/webpack-internal:///(rsc)/./app/page.tsx?0:2221:43)
+    at resolveErrorDev (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1792:63)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2071:17)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2059:7)
+    at progress (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2262:17)
+[ 4389275ms] [ERROR] %o
+
+%s Error: pricing is not defined
+    at LandingPage (rsc://React/Server/webpack-internal:///(rsc)/./app/page.tsx?0:2221:43)
+    at resolveErrorDev (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:1792:63)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2071:17)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2059:7)
+    at progress (webpack-internal:///(app-pages-browser)/../node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2262:17) The above error occurred in the <LandingPage> component. It was handled by the <ReactDevOverlay> error boundary. @ webpack-internal:///(app-pages-browser)/../node_modules/next/dist/client/react-client-callbacks/app-router.js:52
+[ 4412585ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(app-pages-browser)/../node_modules/next/dist/client/components/react-dev-overlay/app/hot-reloader-client.js:140

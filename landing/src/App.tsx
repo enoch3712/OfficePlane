@@ -271,6 +271,7 @@ export default function App() {
 
             {/* Terminal UI */}
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+              {/* Title bar */}
               <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
                 <div className="flex gap-1.5">
                   <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
@@ -282,6 +283,7 @@ export default function App() {
                 </p>
               </div>
 
+              {/* Terminal content */}
               <div className="p-5 font-mono text-[13px] leading-[1.7] space-y-1">
                 <p className="text-slate-500">All environment checks passed.</p>
 
@@ -448,6 +450,7 @@ export default function App() {
 
           <div className="overflow-x-auto">
             <div className="min-w-[720px] rounded-2xl border border-white/10 bg-white/[0.02]">
+              {/* Tier header row */}
               <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr] border-b border-white/10">
                 <div />
                 {pricingTiers.map((tier) => (
@@ -464,6 +467,7 @@ export default function App() {
                 ))}
               </div>
 
+              {/* Data rows */}
               {pricingRows.map((row, i) => (
                 <div key={row.label} className={`grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr] ${i < pricingRows.length - 1 ? 'border-b border-white/[0.06]' : ''}`}>
                   <div className="p-6 py-5">
@@ -483,6 +487,7 @@ export default function App() {
             </div>
           </div>
 
+          {/* Enterprise */}
           <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] p-6">
             <div>
               <p className="text-sm font-semibold text-white">Enterprise</p>

@@ -1,12 +1,27 @@
 import type { Metadata } from 'next'
+import { IBM_Plex_Sans, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
-import { Sidebar } from '@/components/Sidebar'
 
 export const metadata: Metadata = {
-  title: 'OfficePlane - Management Dashboard',
-  description: 'Agentic framework for Office document manipulation at scale',
+  title: 'OfficePlane | Agentic Runtime For Documents',
+  description:
+    'Open-source agentic runtime to plan, execute, and verify document workflows across LibreOffice, Google Docs, and Microsoft Office.',
 }
+
+const bodyFont = IBM_Plex_Sans({
+  subsets: ['latin'],
+  variable: '--font-body',
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+})
+
+const headingFont = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-heading',
+  weight: ['500', '600', '700'],
+  display: 'swap',
+})
 
 export default function RootLayout({
   children,
@@ -15,14 +30,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased bg-gray-50" suppressHydrationWarning>
+      <body
+        className={`${bodyFont.variable} ${headingFont.variable} antialiased bg-background text-foreground`}
+        suppressHydrationWarning
+      >
         <Providers>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
-          </div>
+          {children}
         </Providers>
       </body>
     </html>

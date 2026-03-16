@@ -30,16 +30,16 @@ export function ConfirmDialog({
 
   const variantStyles = {
     danger: {
-      icon: 'bg-red-100 text-red-600',
+      icon: 'bg-red-500/10 text-red-400',
       button: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
     },
     warning: {
-      icon: 'bg-amber-100 text-amber-600',
+      icon: 'bg-amber-500/10 text-amber-400',
       button: 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500',
     },
     default: {
-      icon: 'bg-orange-100 text-orange-600',
-      button: 'bg-orange-500 hover:bg-orange-600 focus:ring-orange-500',
+      icon: 'bg-[#39ff14]/10 text-[#39ff14]',
+      button: 'bg-[#39ff14] text-[#060a14] hover:bg-[#39ff14]/90 focus:ring-[#39ff14]/30',
     },
   }
 
@@ -54,11 +54,11 @@ export function ConfirmDialog({
       />
 
       {/* Dialog */}
-      <div className="relative w-full max-w-md mx-4 bg-white rounded-xl shadow-xl transform-gpu animate-in fade-in-0 zoom-in-95 duration-150">
+      <div className="relative w-full max-w-md mx-4 bg-[#060a14] border border-white/10 rounded-xl shadow-xl transform-gpu animate-in fade-in-0 zoom-in-95 duration-150">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          className="absolute top-4 right-4 p-1 text-slate-500 hover:text-slate-400 hover:bg-white/5 rounded-lg transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -73,8 +73,8 @@ export function ConfirmDialog({
 
             {/* Text */}
             <div className="flex-1 pt-1">
-              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-              <p className="mt-2 text-sm text-gray-600 leading-relaxed">{message}</p>
+              <h3 className="text-lg font-semibold text-white">{title}</h3>
+              <p className="mt-2 text-sm text-slate-400 leading-relaxed">{message}</p>
             </div>
           </div>
         </div>
@@ -84,7 +84,7 @@ export function ConfirmDialog({
           <button
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-200 bg-white/[0.02] border border-white/10 rounded-lg hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white/10 transition-colors disabled:opacity-50"
           >
             {cancelText}
           </button>

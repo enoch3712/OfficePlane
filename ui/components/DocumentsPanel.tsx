@@ -86,12 +86,12 @@ export function DocumentsPanel() {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white/[0.02] rounded-lg shadow p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-48" />
+          <div className="h-6 bg-white/10 rounded w-48" />
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-100 rounded" />
+              <div key={i} className="h-20 bg-white/5 rounded" />
             ))}
           </div>
         </div>
@@ -100,17 +100,17 @@ export function DocumentsPanel() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow flex flex-col h-[600px]">
-      <div className="p-6 border-b border-gray-200">
+    <div className="bg-white/[0.02] rounded-lg shadow flex flex-col h-[600px]">
+      <div className="p-6 border-b border-white/10">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Documents</h2>
-          <p className="text-sm text-gray-500">{documents?.length || 0} documents</p>
+          <h2 className="text-lg font-semibold text-white">Documents</h2>
+          <p className="text-sm text-slate-500">{documents?.length || 0} documents</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
         {!documents || documents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+          <div className="flex flex-col items-center justify-center h-full text-slate-500">
             <FileText className="w-16 h-16 mb-4" />
             <p className="text-sm">No documents uploaded</p>
           </div>
@@ -123,7 +123,7 @@ export function DocumentsPanel() {
               return (
                 <div
                   key={document.id}
-                  className="group border border-gray-200 rounded-lg hover:border-primary-300 hover:shadow-sm transition-all"
+                  className="group border border-white/10 rounded-lg hover:border-[#39ff14]/30 hover:shadow-sm transition-all"
                 >
                   {/* Document Header */}
                   <div
@@ -134,40 +134,40 @@ export function DocumentsPanel() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <button
-                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                            className="p-1 hover:bg-white/5 rounded transition-colors"
                             onClick={(e) => {
                               e.stopPropagation()
                               toggleDocument(document.id)
                             }}
                           >
                             {isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-gray-600" />
+                              <ChevronDown className="w-4 h-4 text-slate-400" />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-600" />
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
                             )}
                           </button>
-                          <FileText className="w-4 h-4 text-primary-600" />
-                          <span className="font-medium text-gray-900">
+                          <FileText className="w-4 h-4 text-[#39ff14]" />
+                          <span className="font-medium text-white">
                             {document.title}
                           </span>
                         </div>
 
                         <div className="ml-7 grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
                           {document.author && (
-                            <div className="text-gray-500">
-                              Author: <span className="text-gray-900">{document.author}</span>
+                            <div className="text-slate-500">
+                              Author: <span className="text-white">{document.author}</span>
                             </div>
                           )}
-                          <div className="text-gray-500">
+                          <div className="text-slate-500">
                             Chapters:{' '}
-                            <span className="text-gray-900">{document.total_chapters || 0}</span>
+                            <span className="text-white">{document.total_chapters || 0}</span>
                           </div>
-                          <div className="text-gray-500">
+                          <div className="text-slate-500">
                             Sections:{' '}
-                            <span className="text-gray-900">{document.total_sections || 0}</span>
+                            <span className="text-white">{document.total_sections || 0}</span>
                           </div>
                           {document.createdAt && (
-                            <div className="text-gray-500 text-xs col-span-3">
+                            <div className="text-slate-500 text-xs col-span-3">
                               Uploaded <TimeAgo date={document.createdAt} />
                             </div>
                           )}
@@ -177,7 +177,7 @@ export function DocumentsPanel() {
                       {/* Delete Button */}
                       <button
                         onClick={(e) => handleDeleteClick(e, document.id, document.title)}
-                        className="p-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        className="p-2 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                         title="Delete document"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -187,7 +187,7 @@ export function DocumentsPanel() {
 
                   {/* Expanded Document Structure */}
                   {isExpanded && fullDoc?.chapters && (
-                    <div className="border-t border-gray-100 bg-gray-50 p-4">
+                    <div className="border-t border-white/10 bg-white/[0.03] p-4">
                       <div className="space-y-2">
                         {fullDoc.chapters.map((chapter) => {
                           const isChapterExpanded = expandedChapters.has(chapter.id)
@@ -195,32 +195,32 @@ export function DocumentsPanel() {
                           return (
                             <div
                               key={chapter.id}
-                              className="bg-white rounded border border-gray-200"
+                              className="bg-white/[0.02] rounded border border-white/10"
                             >
                               {/* Chapter Header */}
                               <div
-                                className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                                className="p-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
                                 onClick={() => toggleChapter(chapter.id)}
                               >
                                 <div className="flex items-center gap-2">
                                   <button
-                                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                    className="p-1 hover:bg-white/5 rounded transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       toggleChapter(chapter.id)
                                     }}
                                   >
                                     {isChapterExpanded ? (
-                                      <ChevronDown className="w-3 h-3 text-gray-600" />
+                                      <ChevronDown className="w-3 h-3 text-slate-400" />
                                     ) : (
-                                      <ChevronRight className="w-3 h-3 text-gray-600" />
+                                      <ChevronRight className="w-3 h-3 text-slate-400" />
                                     )}
                                   </button>
-                                  <BookOpen className="w-3 h-3 text-primary-500" />
-                                  <span className="text-sm font-medium text-gray-900">
+                                  <BookOpen className="w-3 h-3 text-[#39ff14]" />
+                                  <span className="text-sm font-medium text-white">
                                     {chapter.order_index + 1}. {chapter.title}
                                   </span>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-slate-500">
                                     ({chapter.sections.length} sections)
                                   </span>
                                 </div>
@@ -228,18 +228,18 @@ export function DocumentsPanel() {
 
                               {/* Sections */}
                               {isChapterExpanded && chapter.sections.length > 0 && (
-                                <div className="border-t border-gray-100 bg-gray-50 p-3 space-y-1">
+                                <div className="border-t border-white/10 bg-white/[0.03] p-3 space-y-1">
                                   {chapter.sections.map((section) => (
                                     <div
                                       key={section.id}
-                                      className="flex items-center gap-2 text-xs text-gray-700 py-1 px-2 hover:bg-white rounded transition-colors"
+                                      className="flex items-center gap-2 text-xs text-slate-200 py-1 px-2 hover:bg-white/[0.02] rounded transition-colors"
                                     >
-                                      <FileType className="w-3 h-3 text-gray-400" />
+                                      <FileType className="w-3 h-3 text-slate-500" />
                                       <span>
                                         {chapter.order_index + 1}.{section.order_index + 1}{' '}
                                         {section.title}
                                       </span>
-                                      <span className="ml-auto flex items-center gap-1 text-gray-500">
+                                      <span className="ml-auto flex items-center gap-1 text-slate-500">
                                         <Hash className="w-3 h-3" />
                                         {section.page_count} pages
                                       </span>

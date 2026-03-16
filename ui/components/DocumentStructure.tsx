@@ -98,13 +98,13 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
 
   if (isLoading) {
     return (
-      <div className="h-full bg-white border-r border-gray-200">
-        <div className="p-4 border-b border-gray-200">
-          <div className="h-6 bg-gray-200 rounded animate-pulse" />
+      <div className="h-full bg-[#060a14] border-r border-white/10">
+        <div className="p-4 border-b border-white/10">
+          <div className="h-6 bg-white/10 rounded animate-pulse" />
         </div>
         <div className="p-4 space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-12 bg-gray-100 rounded animate-pulse" />
+            <div key={i} className="h-12 bg-white/5 rounded animate-pulse" />
           ))}
         </div>
       </div>
@@ -112,18 +112,18 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
   }
 
   return (
-    <div className="h-full bg-white border-r border-gray-200 flex flex-col">
+    <div className="h-full bg-[#060a14] border-r border-white/10 flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Documents</h2>
+      <div className="p-4 border-b border-white/10">
+        <h2 className="text-lg font-semibold text-white mb-3">Documents</h2>
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
           <input
             type="text"
             placeholder="Search documents..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="w-full pl-10 pr-3 py-2 text-sm border border-white/10 bg-white/[0.03] text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#39ff14]/30 focus:border-transparent"
           />
         </div>
       </div>
@@ -131,7 +131,7 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
       {/* Document List */}
       <div className="flex-1 overflow-y-auto">
         {!documents || documents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
+          <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8">
             <FileText className="w-16 h-16 mb-3" />
             <p className="text-sm text-center">No documents uploaded</p>
           </div>
@@ -151,8 +151,8 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
                     <div
                       className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors ${
                         isSelected
-                          ? 'bg-orange-50 text-orange-700'
-                          : 'hover:bg-gray-50 text-gray-700'
+                          ? 'bg-[#39ff14]/10 text-[#39ff14]'
+                          : 'hover:bg-white/[0.03] text-slate-200'
                       }`}
                     >
                       <button
@@ -168,13 +168,13 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
                         <span className="flex-1 text-sm font-medium truncate">
                           {document.title}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-slate-500">
                           {document.total_chapters || 0}
                         </span>
                       </button>
                       <button
                         onClick={(e) => handleDeleteClick(e, document.id, document.title)}
-                        className="p-1.5 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                        className="p-1.5 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-all"
                         title="Delete document"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -183,7 +183,7 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
 
                     {/* Loading Indicator */}
                     {isSelected && isLoadingDocument && (
-                      <div className="mt-1 ml-6 flex items-center gap-2 px-3 py-4 text-gray-500">
+                      <div className="mt-1 ml-6 flex items-center gap-2 px-3 py-4 text-slate-500">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span className="text-sm">Loading document structure...</span>
                       </div>
@@ -200,18 +200,18 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
                               {/* Chapter */}
                               <button
                                 onClick={() => toggleChapter(chapter.id)}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/[0.03] text-slate-200 transition-colors"
                               >
                                 <ChevronRight
                                   className={`w-3.5 h-3.5 transition-transform ${
                                     isChapterExpanded ? 'rotate-90' : ''
                                   }`}
                                 />
-                                <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+                                <BookOpen className="w-3.5 h-3.5 text-blue-400" />
                                 <span className="flex-1 text-left text-sm truncate">
                                   {chapter.order_index + 1}. {chapter.title}
                                 </span>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-slate-500">
                                   {chapter.sections.length}
                                 </span>
                               </button>
@@ -225,14 +225,14 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
                                       onClick={() =>
                                         handleSelectSection(chapter.id, section.id)
                                       }
-                                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-700 transition-colors"
+                                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-500/10 text-slate-400 hover:text-blue-400 transition-colors"
                                     >
                                       <FileType className="w-3 h-3" />
                                       <span className="flex-1 text-left text-xs truncate">
                                         {chapter.order_index + 1}.{section.order_index + 1}{' '}
                                         {section.title}
                                       </span>
-                                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                                      <div className="flex items-center gap-1 text-xs text-slate-500">
                                         <Hash className="w-3 h-3" />
                                         {section.page_count}
                                       </div>
@@ -254,15 +254,15 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
 
       {/* Footer Stats */}
       {documents && documents.length > 0 && (
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <div className="text-xs text-gray-600">
+        <div className="p-4 border-t border-white/10 bg-white/[0.03]">
+          <div className="text-xs text-slate-400">
             <div className="flex justify-between mb-1">
               <span>Total Documents:</span>
-              <span className="font-medium text-gray-900">{documents.length}</span>
+              <span className="font-medium text-white">{documents.length}</span>
             </div>
             <div className="flex justify-between">
               <span>Total Chapters:</span>
-              <span className="font-medium text-gray-900">
+              <span className="font-medium text-white">
                 {documents.reduce((sum, doc) => sum + (doc.total_chapters || 0), 0)}
               </span>
             </div>

@@ -73,17 +73,17 @@ function ToastContainer({ toasts, removeToast }: { toasts: Toast[]; removeToast:
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const icons = {
-    success: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
-    error: <AlertCircle className="w-5 h-5 text-red-500" />,
-    info: <Info className="w-5 h-5 text-blue-500" />,
-    document: <FileText className="w-5 h-5 text-indigo-500" />,
+    success: <CheckCircle2 className="w-5 h-5 text-emerald-400" />,
+    error: <AlertCircle className="w-5 h-5 text-red-400" />,
+    info: <Info className="w-5 h-5 text-blue-400" />,
+    document: <FileText className="w-5 h-5 text-indigo-400" />,
   }
 
   const bgColors = {
-    success: 'bg-emerald-50 border-emerald-200',
-    error: 'bg-red-50 border-red-200',
-    info: 'bg-blue-50 border-blue-200',
-    document: 'bg-indigo-50 border-indigo-200',
+    success: 'bg-emerald-500/10 border-emerald-500/20',
+    error: 'bg-red-500/10 border-red-500/20',
+    info: 'bg-blue-500/10 border-blue-500/20',
+    document: 'bg-indigo-500/10 border-indigo-500/20',
   }
 
   return (
@@ -100,16 +100,16 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
             {icons[toast.type]}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900">{toast.title}</p>
+            <p className="text-sm font-semibold text-white">{toast.title}</p>
             {toast.description && (
-              <p className="mt-1 text-sm text-gray-600">{toast.description}</p>
+              <p className="mt-1 text-sm text-slate-400">{toast.description}</p>
             )}
             {toast.details && toast.details.length > 0 && (
               <div className="mt-3 space-y-1.5">
                 {toast.details.map((detail, index) => (
                   <div key={index} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">{detail.label}</span>
-                    <span className="font-medium text-gray-900">{detail.value}</span>
+                    <span className="text-slate-500">{detail.label}</span>
+                    <span className="font-medium text-white">{detail.value}</span>
                   </div>
                 ))}
               </div>
@@ -117,9 +117,9 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 rounded-lg p-1.5 hover:bg-black/5 transition-colors"
+            className="flex-shrink-0 rounded-lg p-1.5 hover:bg-white/5 transition-colors"
           >
-            <X className="w-4 h-4 text-gray-400" />
+            <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>
       </div>
