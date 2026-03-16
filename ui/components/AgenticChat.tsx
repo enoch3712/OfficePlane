@@ -3,25 +3,33 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { PlanActionNode, PlanResponse } from '@/lib/types'
-import { Bot, CheckCircle, CheckCircle2, Download, FileText, Loader2, Play, RefreshCw, Send, ShieldCheck, Sparkles, User, XCircle } from 'lucide-react'
+import type {
+  OrchestrationSummary,
+  PlanActionNode,
+  PlanResponse,
+  VerificationResult,
+} from '@/lib/types'
+import {
+  Bot,
+  CheckCircle,
+  CheckCircle2,
+  Download,
+  FileText,
+  Loader2,
+  Play,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  User,
+  Workflow,
+  XCircle,
+} from 'lucide-react'
 
 type ChatAction = 'planning'
 
 interface AgenticChatProps {
   selectedDocumentId?: string
-}
-
-type VerificationResult = {
-  verified: boolean
-  confidence: number
-  findings: Array<{
-    check: string
-    passed: boolean
-    details: string
-  }>
-  summary: string
-  suggestions?: string[]
 }
 
 type ChatMessage = {
@@ -60,6 +68,86 @@ const getStatusStyle = (status?: string) => {
     default:
       return 'bg-white/5 text-slate-400 border-white/10'
   }
+}
+
+const formatModeLabel = (value?: string | null) => {
+  if (!value) return 'unknown'
+  return value.replace(/_/g, ' ')
+}
+
+const formatSignalValue = (value: unknown) => {
+  if (typeof value === 'number') {
+    return value.toFixed(value <= 1 ? 2 : 0)
+  }
+  return String(value)
+}
+
+const renderOrchestration = (summary?: OrchestrationSummary) => {
+  if (!summary) return null
+
+  return (
+    <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-indigo-900">
+        <Workflow className="h-4 w-4" />
+        {summary.strategy} · {formatModeLabel(summary.final_mode)}
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-2 text-xs text-indigo-800">
+        <span className="rounded-full bg-white/80 px-2 py-1">
+          initial: {formatModeLabel(summary.initial_mode)}
+        </span>
+        <span className="rounded-full bg-white/80 px-2 py-1">
+          attempts: {summary.worker_attempts}
+        </span>
+        {summary.worker_confidence !== undefined && summary.worker_confidence !== null && (
+          <span className="rounded-full bg-white/80 px-2 py-1">
+            confidence: {summary.worker_confidence.toFixed(2)}
+          </span>
+        )}
+        {summary.takeover_reason && (
+          <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-900">
+            takeover: {summary.takeover_reason}
+          </span>
+        )}
+      </div>
+
+      {Object.keys(summary.signals).length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {Object.entries(summary.signals).map(([key, value]) => (
+            <span
+              key={key}
+              className="rounded-full border border-indigo-200 bg-white px-2 py-1 text-xs text-indigo-700"
+            >
+              {key}: {formatSignalValue(value)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {summary.transitions.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {summary.transitions.map((transition, index) => (
+            <div
+              key={`${transition.state}-${index}`}
+              className="rounded-md border border-indigo-100 bg-white px-3 py-2"
+            >
+              <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                <span>{transition.state}</span>
+                <span>{transition.action}</span>
+              </div>
+              <div className="mt-1 text-sm text-indigo-900">{transition.reason}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {summary.validation_issues.length > 0 && (
+        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          {summary.validation_issues.join(' ')}
+        </div>
+      )}
+    </div>
+  )
 }
 
 const renderNode = (node: PlanActionNode, depth = 0) => {
@@ -136,6 +224,10 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
     queryKey: ['documents'],
     queryFn: () => api.getDocuments(),
   })
+  const { data: orchestrationSettings } = useQuery({
+    queryKey: ['orchestration-settings'],
+    queryFn: () => api.getOrchestrationSettings(),
+  })
 
   const activeDocument = useMemo(
     () => documents?.find((doc) => doc.id === localDocumentId),
@@ -173,7 +265,9 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
         const assistantMessage: ChatMessage = {
           id: `msg_${Date.now()}_plan`,
           role: 'assistant',
-          content: 'Plan generated successfully.',
+          content: plan.orchestration
+            ? `Plan generated via ${plan.orchestration.strategy} in ${formatModeLabel(plan.orchestration.final_mode)} mode.`
+            : 'Plan generated successfully.',
           actionLabel,
           plan,
           originalRequest: trimmed,
@@ -352,6 +446,14 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
           <div className="mt-3 text-xs text-slate-500">
             Active: <span className="font-medium text-slate-200">{activeDocument.title}</span>
             {activeDocument.author ? ` · ${activeDocument.author}` : ''}
+          </div>
+        )}
+        {orchestrationSettings?.settings && (
+          <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
+            Strategy: <span className="font-semibold">{orchestrationSettings.settings.strategy}</span>
+            {orchestrationSettings.settings.allow_orchestrator_takeover
+              ? ' · takeover enabled'
+              : ' · takeover disabled'}
           </div>
         )}
       </div>
@@ -612,6 +714,8 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                     </div>
                     {message.plan.tree.tree.map((node) => renderNode(node))}
                   </div>
+
+                  {renderOrchestration(message.plan.orchestration)}
 
                   <div className="mt-4 flex justify-end">
                     <button

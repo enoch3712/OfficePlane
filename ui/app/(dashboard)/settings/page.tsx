@@ -1,7 +1,11 @@
 'use client'
 
 import { useWebSocket } from '@/hooks/useWebSocket'
-import { Bell, HelpCircle, Settings } from 'lucide-react'
+import {
+  Bell,
+  HelpCircle,
+  Settings,
+} from 'lucide-react'
 
 export default function SettingsPage() {
   const { status } = useWebSocket()

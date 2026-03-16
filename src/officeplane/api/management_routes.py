@@ -10,6 +10,7 @@ import json
 from pydantic import BaseModel
 
 from prisma.enums import InstanceState, TaskState, TaskPriority, EventType
+from ..agentic import OrchestrationSettings, WorkchestratorPlanner, settings_store
 from ..management.db import get_db
 from ..management.instance_manager import instance_manager
 from ..management.task_queue import task_queue
@@ -47,6 +48,10 @@ class PlanDocumentRequest(BaseModel):
     max_sections_per_chapter: int = 10
     max_pages_per_section: int = 5
     include_content_outlines: bool = True
+
+
+class UpdateOrchestrationSettingsRequest(BaseModel):
+    settings: OrchestrationSettings
 
 
 async def broadcast_event(event_type: str, data: dict):
@@ -168,7 +173,10 @@ def _normalize_plan_for_existing_document(
     )
 
 
-def _build_plan_generator() -> PlanGenerator:
+def _build_plan_generator(
+    provider_preference: str = "auto",
+    model_override: Optional[str] = None,
+) -> PlanGenerator:
     """Build a PlanGenerator with the best available LLM.
 
     Tries in order: Gemini (GOOGLE_API_KEY), OpenAI (OPENAI_API_KEY), MockPlanLLM (fallback).
@@ -178,31 +186,50 @@ def _build_plan_generator() -> PlanGenerator:
 
     # Try Gemini first (used for vision ingestion, likely already configured)
     google_key = os.getenv("GOOGLE_API_KEY")
-    if google_key:
+    if provider_preference in ("auto", "gemini") and google_key:
         try:
-            model = os.getenv("OFFICEPLANE_PLAN_MODEL", "gemini-2.0-flash")
+            model = model_override or os.getenv("OFFICEPLANE_PLAN_MODEL", "gemini-2.0-flash")
             adapter = GeminiPlanAdapter(api_key=google_key, model=model)
             logging.info(f"Using Gemini for plan generation (model: {model})")
             return PlanGenerator(llm=adapter)
         except Exception as e:
             logging.warning(f"Failed to initialize Gemini adapter: {e}")
+            if provider_preference == "gemini":
+                raise
 
     # Try OpenAI as fallback
     openai_key = os.getenv("OPENAI_API_KEY")
-    if openai_key:
+    if provider_preference in ("auto", "openai") and openai_key:
         try:
             from openai import AsyncOpenAI
 
             client = AsyncOpenAI(api_key=openai_key)
-            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            model = model_override or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
             logging.info(f"Using OpenAI for plan generation (model: {model})")
             return PlanGenerator(llm=OpenAIAdapter(client, model=model))
         except Exception as e:
             logging.warning(f"Failed to initialize OpenAI adapter: {e}")
+            if provider_preference == "openai":
+                raise
+
+    if provider_preference == "mock":
+        logging.warning("Using MockPlanLLM by explicit request.")
+        return PlanGenerator(llm=MockPlanLLM())
 
     # Fallback to mock (for testing only)
     logging.warning("No LLM API key found. Using MockPlanLLM (hardcoded responses).")
     return PlanGenerator(llm=MockPlanLLM())
+
+
+def _build_plan_generator_for_role(role: str, settings: OrchestrationSettings) -> PlanGenerator:
+    role_settings = settings.orchestrator if role == "orchestrator" else settings.worker
+    return _build_plan_generator(
+        provider_preference=role_settings.provider,
+        model_override=role_settings.model,
+    )
+
+
+planner_service = WorkchestratorPlanner(generator_factory=_build_plan_generator_for_role)
 
 
 # ============================================================
@@ -261,6 +288,29 @@ async def delete_instance(instance_id: str):
     """Delete an instance"""
     await instance_manager.delete_instance(instance_id)
     return {"status": "deleted", "id": instance_id}
+
+
+# ============================================================
+# SETTINGS
+# ============================================================
+
+
+@router.get("/settings/orchestration")
+async def get_orchestration_settings():
+    """Get persisted orchestration settings for document planning."""
+    settings = settings_store.load()
+    return {"settings": settings.model_dump(mode="json")}
+
+
+@router.put("/settings/orchestration")
+async def update_orchestration_settings(request: UpdateOrchestrationSettingsRequest = Body(...)):
+    """Update persisted orchestration settings for document planning."""
+    settings = settings_store.save(request.settings)
+    await broadcast_event(
+        "orchestration_settings_updated",
+        {"settings": settings.model_dump(mode="json")},
+    )
+    return {"settings": settings.model_dump(mode="json")}
 
 
 # ============================================================
@@ -695,14 +745,13 @@ async def plan_document(document_id: str, request: PlanDocumentRequest = Body(..
             raise HTTPException(status_code=404, detail="Document not found")
 
         outline_text = _format_outline_for_prompt(outline)
-
-        # Use the new edit plan generator
-        generator = _build_plan_generator()
-        result = await generator.generate_edit_plan(
+        settings = settings_store.load()
+        result = await planner_service.plan_edit(
             document_outline=outline_text,
-            user_request=request.prompt,
             document_id=document_id,
             document_title=outline.title,
+            user_request=request.prompt,
+            settings=settings,
         )
 
         if not result.success:
@@ -720,6 +769,7 @@ async def plan_document(document_id: str, request: PlanDocumentRequest = Body(..
             },
             "plan": summary.model_dump(),
             "tree": PlanDisplayer.to_json(result.plan, include_inputs=True),
+            "orchestration": result.orchestration.model_dump(mode="json"),
         }
     finally:
         await doc_store.close()
