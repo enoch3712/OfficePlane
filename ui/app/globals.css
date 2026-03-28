@@ -4,25 +4,33 @@
 
 @layer base {
   :root {
-    /* Dark Turso Theme - Phosphor Green */
-    --background: 223 54% 5%;
-    --foreground: 210 40% 92%;
+    /* OfficePlane — Dark Turso / Phosphor Green
+       Depth system inspired by daemon's layered surfaces */
 
-    --card: 220 40% 7%;
+    /* Depth surfaces */
+    --background: 223 54% 5%;       /* #070d1f — page background */
+    --foreground: 210 40% 92%;      /* #dde6f0 — primary text */
+
+    --card: 220 40% 7%;             /* #0a1020 — cards, elevated surfaces */
     --card-foreground: 210 40% 92%;
 
-    --popover: 220 40% 7%;
+    --popover: 220 30% 9%;          /* modals, popovers */
     --popover-foreground: 210 40% 92%;
 
-    /* Primary - Phosphor Green #39ff14 */
+    --depth-0: 223 54% 5%;          /* page background */
+    --depth-1: 220 40% 7%;          /* cards, sidebar */
+    --depth-2: 220 30% 10%;         /* hover, expanded content */
+    --depth-3: 220 25% 13%;         /* modals, popovers */
+
+    /* Primary — Phosphor Green #39ff14 */
     --primary: 110 100% 54%;
     --primary-foreground: 223 54% 5%;
 
-    /* Secondary - Dark muted */
+    /* Secondary — Dark muted */
     --secondary: 220 20% 12%;
     --secondary-foreground: 210 40% 92%;
 
-    /* Accent - Warm Orange (preserved) */
+    /* Accent — Warm Orange */
     --accent: 24 95% 53%;
     --accent-foreground: 0 0% 100%;
 
@@ -30,20 +38,21 @@
     --muted: 220 20% 12%;
     --muted-foreground: 215 16% 55%;
 
-    /* Destructive - Red */
+    /* Destructive — Red */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Success - Green */
+    /* Success — Green */
     --success: 142 76% 46%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning - Amber */
+    /* Warning — Amber */
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
     /* Border & Input */
     --border: 220 20% 15%;
+    --border-bright: 220 20% 20%;
     --input: 220 20% 15%;
     --ring: 110 100% 54%;
 
@@ -70,18 +79,24 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading), 'Space Grotesk', 'Segoe UI', sans-serif;
   }
+
+  /* Focus rings */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
 }
 
 /* Custom scrollbar */
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--primary) / 0.3) transparent;
+    scrollbar-color: hsl(var(--primary) / 0.2) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -89,44 +104,78 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--primary) / 0.3);
-    border-radius: 4px;
+    background-color: hsl(var(--primary) / 0.2);
+    border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: hsl(var(--primary) / 0.5);
+    background-color: hsl(var(--primary) / 0.4);
   }
 }
 
-/* Badge Styles - Dark Theme */
+/* Badge Styles — two visual styles only */
 @layer components {
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider font-mono;
   }
 
+  /* Neutral badge — for success, info, neutral states */
+  .badge-neutral {
+    background: hsl(var(--depth-2));
+    @apply text-muted-foreground;
+  }
+
+  /* Accent badge — for active, warning, error states */
+  .badge-accent {
+    @apply bg-primary/15 text-primary;
+  }
+
+  /* Semantic badges (legacy compat) */
   .badge-queued {
     @apply bg-amber-500/15 text-amber-400;
   }
 
   .badge-running {
-    @apply bg-blue-500/15 text-blue-400;
+    @apply bg-primary/15 text-primary;
   }
 
   .badge-completed {
-    @apply bg-green-500/15 text-green-400;
+    background: hsl(var(--depth-2));
+    @apply text-muted-foreground;
   }
 
   .badge-failed {
-    @apply bg-red-500/15 text-red-400;
+    @apply bg-red-500/10 text-red-400;
   }
 
   .badge-open {
-    @apply bg-emerald-500/15 text-emerald-400;
+    @apply bg-primary/15 text-primary;
   }
 }
 
-/* Utility classes */
+/* Animations */
 @layer utilities {
+  /* Phosphor pulse — active status indicators */
+  .pulse-signal {
+    animation: pulse-signal 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-signal {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Depth reveal — expanded content entrance */
+  .depth-reveal {
+    animation: depth-reveal 200ms ease-out;
+  }
+
+  @keyframes depth-reveal {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Glow effects */
   .glow {
     box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
   }
@@ -135,7 +184,18 @@
     box-shadow: 0 0 20px hsl(var(--accent) / 0.15);
   }
 
+  /* Font utilities */
   .font-heading {
     font-family: var(--font-heading), 'Space Grotesk', 'Segoe UI', sans-serif;
   }
+
+  .font-mono {
+    font-family: var(--font-mono), 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+  }
+
+  /* Depth backgrounds */
+  .bg-depth-0 { background: hsl(var(--depth-0)); }
+  .bg-depth-1 { background: hsl(var(--depth-1)); }
+  .bg-depth-2 { background: hsl(var(--depth-2)); }
+  .bg-depth-3 { background: hsl(var(--depth-3)); }
 }

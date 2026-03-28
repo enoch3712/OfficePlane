@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Sans, Space_Grotesk } from 'next/font/google'
+import { IBM_Plex_Sans, Space_Grotesk, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
@@ -23,6 +23,13 @@ const headingFont = Space_Grotesk({
   display: 'swap',
 })
 
+const monoFont = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  weight: ['400', '500', '600'],
+  display: 'swap',
+})
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${bodyFont.variable} ${headingFont.variable} antialiased bg-background text-foreground`}
+        className={`${bodyFont.variable} ${headingFont.variable} ${monoFont.variable} antialiased bg-background text-foreground`}
         suppressHydrationWarning
       >
         <Providers>

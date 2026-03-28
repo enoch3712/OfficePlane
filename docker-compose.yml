@@ -18,6 +18,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis — task queue, document locks, SSE pub/sub
+  redis:
+    image: redis:7-alpine
+    container_name: officeplane-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # FastAPI Backend
   api:
     build:
@@ -29,12 +44,20 @@ services:
     environment:
       - OFFICEPLANE_DRIVER=libreoffice
       - DATABASE_URL=postgresql://officeplane:officeplane@db:5432/officeplane
+      - OFFICEPLANE_BROKER=${OFFICEPLANE_BROKER:-memory}
+      - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - OFFICEPLANE_INGESTION_VISION_PROVIDER=${OFFICEPLANE_INGESTION_VISION_PROVIDER:-gemini}
+      - CONTENT_AGENT_MODEL=${CONTENT_AGENT_MODEL:-gpt-4o}
+      - CONTENT_AGENT_TIMEOUT=${CONTENT_AGENT_TIMEOUT:-600}
+      - CONTENT_AGENT_WORKSPACE=/data/workspaces
     depends_on:
       db:
         condition: service_healthy
+      # redis dependency only needed when OFFICEPLANE_BROKER=redis
+      # redis:
+      #   condition: service_healthy
     volumes:
       - ./data:/data
       - ./src:/app/src:ro  # Mount source code for hot reload (read-only)
@@ -60,3 +83,4 @@ services:
 
 volumes:
   db_data:
+  redis_data:

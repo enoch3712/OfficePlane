@@ -4,10 +4,21 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from officeplane.api.routes import router
 from officeplane.api.management_routes import router as management_router
+from officeplane.api.generate_routes import router as generate_router
+from officeplane.api.team_routes import router as team_router
+from officeplane.api.skills_routes import router as skills_router
+from officeplane.api.jobs_routes import router as jobs_router
+from officeplane.api.sessions_routes import router as sessions_router
+from officeplane.api.ecm.instances import router as ecm_instances_router
+from officeplane.api.ecm.documents import router as ecm_documents_router
+from officeplane.api.ecm.collections import router as ecm_collections_router
+from officeplane.api.ecm.search import router as ecm_search_router
+from officeplane.api.ecm.workflows import router as ecm_workflows_router
 from officeplane.api.middleware import RequestIdMiddleware
 from officeplane.api.websocket import websocket_endpoint
 from officeplane.observability.logging import configure_logging
 from officeplane.management.db import get_db, disconnect_db
+from officeplane.broker import get_broker, close_broker
 from officeplane.management.task_queue import task_queue
 
 
@@ -21,6 +32,13 @@ async def lifespan(app: FastAPI):
     await get_db()
     print("[OfficePlane] Database connected")
 
+    # Connect broker (memory or redis, based on OFFICEPLANE_BROKER)
+    try:
+        broker = await get_broker()
+        print(f"[OfficePlane] Broker connected: {type(broker).__name__}")
+    except Exception as e:
+        print(f"[OfficePlane] Broker failed to connect: {e}")
+
     # Start task queue workers
     await task_queue.start_workers()
     print("[OfficePlane] Task queue workers started")
@@ -33,6 +51,10 @@ async def lifespan(app: FastAPI):
     # Stop task queue workers
     await task_queue.stop_workers()
     print("[OfficePlane] Task queue workers stopped")
+
+    # Disconnect broker
+    await close_broker()
+    print("[OfficePlane] Broker disconnected")
 
     # Disconnect database
     await disconnect_db()
@@ -60,8 +82,18 @@ def create_app() -> FastAPI:
     )
 
     # Include routers
-    app.include_router(router)  # Original render routes
+    app.include_router(router)           # Original render routes
     app.include_router(management_router)  # Management system routes
+    app.include_router(generate_router)  # Legacy content generation (kept for compat)
+    app.include_router(team_router)      # Legacy agent team routes (kept for compat)
+    app.include_router(skills_router)          # Skill discovery
+    app.include_router(jobs_router)            # Agent run + skill-based jobs
+    app.include_router(sessions_router)        # ECM atomic sessions
+    app.include_router(ecm_instances_router)   # ECM: instance lifecycle + agent actions
+    app.include_router(ecm_documents_router)   # ECM: metadata, permissions, audit, lifecycle
+    app.include_router(ecm_collections_router) # ECM: collections/folders
+    app.include_router(ecm_search_router)      # ECM: search + similarity
+    app.include_router(ecm_workflows_router)   # ECM: approval workflows
 
     # Health check endpoint
     @app.get("/health")

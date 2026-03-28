@@ -3,13 +3,79 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { EventType, WebSocketEvent } from '@/lib/types'
-import { Activity, FileText, CheckCircle, XCircle, Play, Clock } from 'lucide-react'
+import { Activity } from 'lucide-react'
 import { format } from 'date-fns'
 import { TimeAgo } from './TimeAgo'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
+import { LoadingState } from '@/components/ui/loading-state'
 
 interface HistoryPanelProps {
   recentEvents?: WebSocketEvent[]
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+type BadgeVariant = 'error' | 'success' | 'accent' | 'warning' | 'neutral'
+
+/** Map an EventType to a short category label shown inside the Badge. */
+function getCategoryLabel(eventType: EventType): string {
+  if (eventType.startsWith('INSTANCE_')) return 'INSTANCE'
+  if (eventType.startsWith('TASK_')) return 'TASK'
+  if (eventType.startsWith('DOCUMENT_')) return 'DOC'
+  if (eventType.startsWith('SYSTEM_') || eventType.startsWith('WORKER_')) return 'SYSTEM'
+  return 'EVENT'
+}
+
+/** Map an EventType to a Badge colour variant. */
+function getBadgeVariant(eventType: EventType): BadgeVariant {
+  if (
+    eventType.includes('ERROR') ||
+    eventType.includes('FAILED') ||
+    eventType.includes('TIMEOUT') ||
+    eventType.includes('CRASHED') ||
+    eventType.includes('DELETED')
+  ) {
+    return 'error'
+  }
+  if (eventType.includes('COMPLETED') || eventType.includes('OPENED')) {
+    return 'success'
+  }
+  if (
+    eventType.includes('STARTED') ||
+    eventType.includes('RUNNING') ||
+    eventType.includes('USED') ||
+    eventType.includes('STARTUP')
+  ) {
+    return 'accent'
+  }
+  if (eventType.includes('QUEUED') || eventType.includes('RETRY')) {
+    return 'warning'
+  }
+  return 'neutral'
+}
+
+/** Turn TASK_COMPLETED into "Task Completed". */
+function formatEventName(eventType: EventType): string {
+  return eventType
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/** Format a millisecond duration into a readable string. */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`
+  return `${(ms / 60_000).toFixed(1)}m`
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function HistoryPanel({ recentEvents }: HistoryPanelProps) {
   const { data: history, isLoading } = useQuery({
@@ -17,157 +83,71 @@ export function HistoryPanel({ recentEvents }: HistoryPanelProps) {
     queryFn: () => api.getHistory({ limit: 50 }),
   })
 
-  const getEventIcon = (eventType: EventType) => {
-    const iconMap: Record<EventType, any> = {
-      // Instance events
-      [EventType.INSTANCE_CREATED]: Play,
-      [EventType.INSTANCE_OPENED]: FileText,
-      [EventType.INSTANCE_USED]: Activity,
-      [EventType.INSTANCE_CLOSED]: FileText,
-      [EventType.INSTANCE_ERROR]: XCircle,
-      [EventType.INSTANCE_HEARTBEAT]: Activity,
-
-      // Task events
-      [EventType.TASK_QUEUED]: Clock,
-      [EventType.TASK_STARTED]: Play,
-      [EventType.TASK_COMPLETED]: CheckCircle,
-      [EventType.TASK_FAILED]: XCircle,
-      [EventType.TASK_RETRY]: Activity,
-      [EventType.TASK_CANCELLED]: XCircle,
-      [EventType.TASK_TIMEOUT]: Clock,
-
-      // Document events
-      [EventType.DOCUMENT_CREATED]: FileText,
-      [EventType.DOCUMENT_IMPORTED]: FileText,
-      [EventType.DOCUMENT_EXPORTED]: FileText,
-      [EventType.DOCUMENT_EDITED]: FileText,
-      [EventType.DOCUMENT_DELETED]: XCircle,
-
-      // System events
-      [EventType.SYSTEM_STARTUP]: Play,
-      [EventType.SYSTEM_SHUTDOWN]: XCircle,
-      [EventType.WORKER_STARTED]: Play,
-      [EventType.WORKER_STOPPED]: XCircle,
-    }
-    return iconMap[eventType] || Activity
-  }
-
-  const getEventColor = (eventType: EventType) => {
-    if (eventType.includes('ERROR') || eventType.includes('FAILED') || eventType.includes('TIMEOUT')) {
-      return 'text-red-400 bg-red-500/10'
-    }
-    if (eventType.includes('COMPLETED') || eventType.includes('OPENED')) {
-      return 'text-green-400 bg-green-500/10'
-    }
-    if (eventType.includes('STARTED') || eventType.includes('RUNNING')) {
-      return 'text-[#39ff14] bg-[#39ff14]/10'
-    }
-    return 'text-slate-400 bg-white/[0.03]'
-  }
-
   if (isLoading) {
     return (
-      <div className="bg-white/[0.02] rounded-lg shadow p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-white/10 rounded w-48" />
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-white/5 rounded" />
-            ))}
-          </div>
-        </div>
-      </div>
+      <Card title="Recent Events">
+        <LoadingState rows={6} />
+      </Card>
+    )
+  }
+
+  if (!history || history.length === 0) {
+    return (
+      <Card title="Recent Events">
+        <EmptyState
+          icon={<Activity className="h-10 w-10" />}
+          message="No execution history"
+          detail="Events will appear here as the system runs"
+        />
+      </Card>
     )
   }
 
   return (
-    <div className="bg-white/[0.02] rounded-lg shadow">
-      <div className="p-6 border-b border-white/10">
-        <h2 className="text-lg font-semibold text-white">Execution History</h2>
-        <p className="text-sm text-slate-500">Recent events and state transitions</p>
-      </div>
+    <Card title="Recent Events">
+      {/* Left-border timeline accent line wrapping the list */}
+      <div className="border-l-[3px] border-primary pl-4">
+        {history.map((event) => {
+          const variant = getBadgeVariant(event.eventType)
+          const category = getCategoryLabel(event.eventType)
+          const name = formatEventName(event.eventType)
 
-      <div className="p-6">
-        {!history || history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-            <Activity className="w-16 h-16 mb-4" />
-            <p className="text-sm">No execution history</p>
-          </div>
-        ) : (
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-6 top-0 bottom-0 w-px bg-white/10" />
+          return (
+            <div
+              key={event.id}
+              className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0"
+            >
+              {/* TimeAgo – mono, left-aligned, fixed width */}
+              <TimeAgo
+                date={event.timestamp}
+                className="w-24 shrink-0 text-xs font-mono text-muted-foreground"
+              />
 
-            <div className="space-y-4">
-              {history.map((event, index) => {
-                const Icon = getEventIcon(event.eventType)
-                const colorClass = getEventColor(event.eventType)
+              {/* Category badge */}
+              <Badge variant={variant} className="shrink-0">
+                {category}
+              </Badge>
 
-                return (
-                  <div key={event.id} className="relative pl-14">
-                    {/* Timeline dot */}
-                    <div className={`absolute left-4 top-2 p-1.5 rounded-full ${colorClass}`}>
-                      <Icon className="w-3 h-3" />
-                    </div>
+              {/* Event name */}
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                {name}
+              </span>
 
-                    <div className="bg-white/[0.03] rounded-lg p-4 hover:bg-white/5 transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-white">
-                              {event.eventType.replace(/_/g, ' ')}
-                            </span>
-                            {event.durationMs && (
-                              <span className="text-xs text-slate-500">
-                                ({event.durationMs}ms)
-                              </span>
-                            )}
-                          </div>
+              {/* Duration (if available) */}
+              {event.durationMs != null && (
+                <span className="shrink-0 text-xs font-mono text-muted-foreground">
+                  {formatDuration(event.durationMs)}
+                </span>
+              )}
 
-                          {event.eventMessage && (
-                            <p className="text-sm text-slate-200 mb-2">{event.eventMessage}</p>
-                          )}
-
-                          <div className="flex items-center gap-4 text-xs text-slate-500">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              <TimeAgo date={event.timestamp} />
-                            </div>
-
-                            {event.document && (
-                              <div className="flex items-center gap-1">
-                                <FileText className="w-3 h-3" />
-                                {event.document.title}
-                              </div>
-                            )}
-
-                            {event.task && (
-                              <div>
-                                Task: {event.task.taskType} ({event.task.state})
-                              </div>
-                            )}
-
-                            {event.actorType && (
-                              <div>
-                                Actor: {event.actorType}
-                                {event.actorId && ` (${event.actorId})`}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="text-xs text-slate-500">
-                          {format(new Date(event.timestamp), 'HH:mm:ss')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+              {/* Absolute timestamp – far right */}
+              <span className="shrink-0 text-xs font-mono text-muted-foreground/60">
+                {format(new Date(event.timestamp), 'HH:mm:ss')}
+              </span>
             </div>
-          </div>
-        )}
+          )
+        })}
       </div>
-    </div>
+    </Card>
   )
 }

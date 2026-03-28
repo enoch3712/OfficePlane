@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose exec -T api ruff *)",
+      "Bash(docker compose exec -T api python -m pytest *)",
+      "Bash(docker compose exec -T api python -m checks *)",
+      "Bash(cd ui *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run lint *)",
+      "Bash(npm run build *)",
+      "Bash(./scripts/check-all.sh *)",
+      "Bash(touch /tmp/.claude-*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.sh\" mark-edit"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.sh\" check-bash"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/quality-gate.sh\" stop-gate"
+          }
+        ]
+      }
+    ]
+  }
+}

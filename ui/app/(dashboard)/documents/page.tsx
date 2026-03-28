@@ -7,7 +7,11 @@ import { DocumentsPanel } from '@/components/DocumentsPanel'
 import { FileUploadDialog } from '@/components/FileUploadDialog'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useToast } from '@/components/ui/toast'
-import { Bell, HelpCircle, Plus } from 'lucide-react'
+import { PageHeader } from '@/components/ui/page-header'
+import { StatusIndicator } from '@/components/ui/status-indicator'
+import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import { cn } from '@/lib/cn'
 
 export default function DocumentsPage() {
   const { status } = useWebSocket()
@@ -37,12 +41,8 @@ export default function DocumentsPage() {
 
       const instanceResponse = await fetch('http://localhost:8001/api/instances', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentId: document.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: document.id }),
       })
 
       if (!instanceResponse.ok) {
@@ -77,77 +77,67 @@ export default function DocumentsPage() {
     }
   }
 
-  return (
-    <div className="h-screen flex flex-col bg-[#060a14]">
-      <header className="h-16 bg-[#060a14] border-b border-white/10 flex items-center justify-between px-6">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-semibold text-white">Documents</h1>
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                status === 'connected' ? 'bg-green-500' : 'bg-white/10'
-              }`}
-            />
-            <span className="text-sm text-slate-400">
-              {status === 'connected' ? 'Live' : 'Disconnected'}
-            </span>
-          </div>
-        </div>
+  const tabs = [
+    { key: 'overview' as const, label: 'Overview' },
+    { key: 'planning' as const, label: 'Planning' },
+  ]
 
-        <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-white/5 rounded-lg transition-colors">
-            <HelpCircle className="w-5 h-5 text-slate-400" />
-          </button>
-          <button className="p-2 hover:bg-white/5 rounded-lg transition-colors relative">
-            <Bell className="w-5 h-5 text-slate-400" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#39ff14] rounded-full" />
-          </button>
-          <button
-            onClick={() => setIsUploadDialogOpen(true)}
-            disabled={isUploading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#39ff14] text-[#060a14] rounded-lg hover:bg-[#39ff14]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="text-sm font-medium">
+  return (
+    <div className="h-full flex flex-col -m-6 lg:-m-8">
+      <div className="px-6 lg:px-8 pt-6 lg:pt-8">
+        <PageHeader
+          title="Documents"
+          subtitle="Manage and plan document workflows"
+          breadcrumbs={[{ label: 'Dashboard' }, { label: 'Documents' }]}
+          status={
+            <StatusIndicator
+              status={status === 'connected' ? 'active' : 'pending'}
+              label={status === 'connected' ? 'Live' : 'Offline'}
+            />
+          }
+          actions={
+            <Button
+              onClick={() => setIsUploadDialogOpen(true)}
+              disabled={isUploading}
+              className="gap-2"
+            >
+              <Plus className="w-4 h-4" />
               {isUploading ? 'Uploading...' : 'Open Instance'}
-            </span>
-          </button>
-        </div>
-      </header>
+            </Button>
+          }
+        />
+      </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-80 flex-shrink-0">
+        {/* Document tree sidebar */}
+        <div className="w-80 flex-shrink-0 border-r border-border">
           <DocumentStructure />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Main content */}
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
           <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center gap-2 border-b border-white/10">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'overview'
-                    ? 'border-[#39ff14] text-[#39ff14]'
-                    : 'border-transparent text-slate-500 hover:text-slate-200'
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('planning')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'planning'
-                    ? 'border-[#39ff14] text-[#39ff14]'
-                    : 'border-transparent text-slate-500 hover:text-slate-200'
-                }`}
-              >
-                Planning
-              </button>
+            {/* Tabs */}
+            <div className="flex items-center gap-1 border-b border-border">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={cn(
+                    'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+                    activeTab === tab.key
+                      ? 'border-b-primary text-primary'
+                      : 'border-b-transparent text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {activeTab === 'overview' && <DocumentsPanel />}
             {activeTab === 'planning' && (
-              <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-sm text-slate-500">
+              <div className="rounded-lg border border-dashed border-border bg-depth-1 p-6 text-sm text-muted-foreground">
                 Use the Agentic Chat panel in the left sidebar to generate plans and
                 manipulate documents.
               </div>

@@ -11,6 +11,7 @@ const config: Config = {
     extend: {
       colors: {
         border: "hsl(var(--border))",
+        "border-bright": "hsl(var(--border-bright))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
@@ -93,11 +94,22 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        depth: {
+          0: "hsl(var(--depth-0))",
+          1: "hsl(var(--depth-1))",
+          2: "hsl(var(--depth-2))",
+          3: "hsl(var(--depth-3))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        heading: ['var(--font-heading)', 'Space Grotesk', 'sans-serif'],
+        body: ['var(--font-body)', 'IBM Plex Sans', 'sans-serif'],
+        mono: ['var(--font-mono)', 'JetBrains Mono', 'SF Mono', 'monospace'],
       },
       keyframes: {
         "accordion-down": {
@@ -108,10 +120,20 @@ const config: Config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "pulse-signal": {
+          "0%, 100%": { opacity: "0.4" },
+          "50%": { opacity: "1" },
+        },
+        "depth-reveal": {
+          from: { opacity: "0", transform: "translateY(4px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-signal": "pulse-signal 2s ease-in-out infinite",
+        "depth-reveal": "depth-reveal 200ms ease-out",
       },
     },
   },

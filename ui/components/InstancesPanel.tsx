@@ -3,8 +3,86 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { InstanceState } from '@/lib/types'
-import { FileText, StopCircle, Trash2, Clock } from 'lucide-react'
+import { FileText, StopCircle, Trash2 } from 'lucide-react'
 import { TimeAgo } from './TimeAgo'
+import { cn } from '@/lib/cn'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { StatusIndicator } from '@/components/ui/status-indicator'
+import { EmptyState } from '@/components/ui/empty-state'
+import { LoadingState } from '@/components/ui/loading-state'
+
+type StatusIndicatorStatus = 'active' | 'completed' | 'error' | 'pending' | 'warning'
+
+function getStatusIndicatorStatus(state: InstanceState): StatusIndicatorStatus {
+  switch (state) {
+    case InstanceState.OPEN:
+    case InstanceState.IN_USE:
+      return 'active'
+    case InstanceState.IDLE:
+      return 'completed'
+    case InstanceState.OPENING:
+    case InstanceState.CLOSING:
+      return 'pending'
+    case InstanceState.ERROR:
+    case InstanceState.CRASHED:
+      return 'error'
+    default:
+      return 'pending'
+  }
+}
+
+function getBadgeVariant(state: InstanceState): 'accent' | 'warning' | 'neutral' | 'error' {
+  switch (state) {
+    case InstanceState.OPEN:
+    case InstanceState.IN_USE:
+      return 'accent'
+    case InstanceState.OPENING:
+    case InstanceState.CLOSING:
+    case InstanceState.IDLE:
+      return 'warning'
+    case InstanceState.CLOSED:
+      return 'neutral'
+    case InstanceState.ERROR:
+    case InstanceState.CRASHED:
+      return 'error'
+    default:
+      return 'neutral'
+  }
+}
+
+function getBorderColor(state: InstanceState): string {
+  switch (state) {
+    case InstanceState.OPEN:
+    case InstanceState.IN_USE:
+      return 'border-l-primary'
+    case InstanceState.OPENING:
+    case InstanceState.CLOSING:
+      return 'border-l-amber-400'
+    case InstanceState.CLOSED:
+    case InstanceState.IDLE:
+      return 'border-l-muted-foreground/30'
+    case InstanceState.ERROR:
+    case InstanceState.CRASHED:
+      return 'border-l-red-500'
+    default:
+      return 'border-l-muted-foreground/30'
+  }
+}
+
+function getStateLabel(state: InstanceState): string {
+  const labels: Record<InstanceState, string> = {
+    [InstanceState.OPENING]: 'Opening',
+    [InstanceState.OPEN]: 'Open',
+    [InstanceState.IDLE]: 'Idle',
+    [InstanceState.IN_USE]: 'In Use',
+    [InstanceState.CLOSING]: 'Closing',
+    [InstanceState.CLOSED]: 'Closed',
+    [InstanceState.ERROR]: 'Error',
+    [InstanceState.CRASHED]: 'Crashed',
+  }
+  return labels[state]
+}
 
 export function InstancesPanel() {
   const queryClient = useQueryClient()
@@ -32,121 +110,125 @@ export function InstancesPanel() {
     [InstanceState.OPEN, InstanceState.IDLE, InstanceState.IN_USE].includes(i.state)
   )
 
-  const getStateBadge = (state: InstanceState) => {
-    const badges: Record<InstanceState, { class: string; label: string }> = {
-      [InstanceState.OPENING]: { class: 'badge badge-queued', label: 'Opening' },
-      [InstanceState.OPEN]: { class: 'badge badge-open', label: 'Open' },
-      [InstanceState.IDLE]: { class: 'badge badge-completed', label: 'Idle' },
-      [InstanceState.IN_USE]: { class: 'badge badge-running', label: 'In Use' },
-      [InstanceState.CLOSING]: { class: 'badge badge-queued', label: 'Closing' },
-      [InstanceState.CLOSED]: { class: 'badge badge-completed', label: 'Closed' },
-      [InstanceState.ERROR]: { class: 'badge badge-failed', label: 'Error' },
-      [InstanceState.CRASHED]: { class: 'badge badge-failed', label: 'Crashed' },
-    }
-    const badge = badges[state]
-    return <span className={badge.class}>{badge.label}</span>
-  }
-
   if (isLoading) {
     return (
-      <div className="bg-white/[0.02] rounded-lg shadow p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-white/10 rounded w-48" />
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-white/5 rounded" />
-            ))}
-          </div>
-        </div>
-      </div>
+      <Card title="Document Instances">
+        <LoadingState rows={3} />
+      </Card>
     )
   }
 
   return (
-    <div className="bg-white/[0.02] rounded-lg shadow flex flex-col h-[600px]">
-      <div className="p-6 border-b border-white/10">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Document Instances</h2>
-          <p className="text-sm text-slate-500">
-            {activeInstances?.length || 0} active of {instances?.length || 0} total
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6">
+    <Card
+      title="Document Instances"
+      subtitle={`${activeInstances?.length || 0} active of ${instances?.length || 0} total`}
+      className="flex flex-col h-[600px]"
+    >
+      <div className="-mt-2 flex-1 overflow-y-auto">
         {!instances || instances.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500">
-            <FileText className="w-16 h-16 mb-4" />
-            <p className="text-sm">No document instances</p>
-          </div>
+          <EmptyState
+            icon={<FileText className="w-12 h-12" />}
+            message="No document instances"
+            detail="Instances will appear here when documents are opened"
+          />
         ) : (
           <div className="space-y-3">
             {instances.map((instance) => (
               <div
                 key={instance.id}
-                className="p-4 border border-white/10 rounded-lg hover:border-[#39ff14]/30 hover:shadow-sm transition-all"
+                className={cn(
+                  'border-l-[3px] bg-depth-1 rounded-lg p-4 border border-border transition-colors',
+                  getBorderColor(instance.state)
+                )}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-slate-400" />
-                      <span className="font-medium text-white">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    {/* Title + Status row */}
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <span className="font-medium text-foreground truncate">
                         {instance.document?.title || 'Standalone Instance'}
                       </span>
-                      {getStateBadge(instance.state)}
+                      <StatusIndicator
+                        status={getStatusIndicatorStatus(instance.state)}
+                      />
+                      <Badge variant={getBadgeVariant(instance.state)}>
+                        {getStateLabel(instance.state)}
+                      </Badge>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <div className="text-slate-500">
-                        Driver: <span className="text-white">{instance.driverType}</span>
-                      </div>
-                      <div className="text-slate-500">
-                        PID: <span className="text-white">{instance.processPid || 'N/A'}</span>
-                      </div>
-                      {instance.lastUsedAt && (
-                        <div className="text-slate-500 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Last used <TimeAgo date={instance.lastUsedAt} />
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                          Driver
                         </div>
-                      )}
-                      {instance.memoryMb && (
-                        <div className="text-slate-500">
-                          Memory: <span className="text-white">{instance.memoryMb} MB</span>
+                        <div className="mt-0.5 text-sm font-mono text-foreground">
+                          {instance.driverType}
                         </div>
-                      )}
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                          PID
+                        </div>
+                        <div className="mt-0.5 text-sm font-mono text-foreground">
+                          {instance.processPid || '\u2014'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                          Memory
+                        </div>
+                        <div className="mt-0.5 text-sm font-mono text-foreground">
+                          {instance.memoryMb ? `${instance.memoryMb} MB` : '\u2014'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                          Last Used
+                        </div>
+                        <div className="mt-0.5 text-sm font-mono text-foreground">
+                          {instance.lastUsedAt ? (
+                            <TimeAgo date={instance.lastUsedAt} />
+                          ) : (
+                            '\u2014'
+                          )}
+                        </div>
+                      </div>
                     </div>
 
+                    {/* Error state message */}
                     {instance.stateMessage && (
-                      <div className="mt-2 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded">
+                      <div className="mt-3 text-xs text-red-400 bg-red-500/10 px-2.5 py-1.5 rounded font-mono">
                         {instance.stateMessage}
                       </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 ml-4">
-                    {instance.state === InstanceState.OPEN ||
-                    instance.state === InstanceState.IDLE ? (
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {(instance.state === InstanceState.OPEN ||
+                      instance.state === InstanceState.IDLE) && (
                       <button
                         onClick={() => closeMutation.mutate(instance.id)}
                         disabled={closeMutation.isPending}
-                        className="p-2 text-amber-400 hover:bg-amber-500/10 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 rounded transition-colors disabled:opacity-40"
                         title="Close instance"
                       >
-                        <StopCircle className="w-4 h-4" />
+                        <StopCircle className="w-3.5 h-3.5" />
                       </button>
-                    ) : null}
+                    )}
 
-                    {instance.state === InstanceState.CLOSED ||
-                    instance.state === InstanceState.ERROR ? (
+                    {(instance.state === InstanceState.CLOSED ||
+                      instance.state === InstanceState.ERROR) && (
                       <button
                         onClick={() => deleteMutation.mutate(instance.id)}
                         disabled={deleteMutation.isPending}
-                        className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-40"
                         title="Delete instance"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    ) : null}
+                    )}
                   </div>
                 </div>
               </div>
@@ -154,6 +236,6 @@ export function InstancesPanel() {
           </div>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

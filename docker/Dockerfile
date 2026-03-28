@@ -26,6 +26,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+# Node.js 22 LTS + pptxgenjs for presentation generation
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+  && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+  && apt-get install -y --no-install-recommends nodejs \
+  && npm install -g pptxgenjs \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Chromium for HTML rendering + image tools + fonts
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium libnss3 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdrm2 libxkbcommon0 libgbm1 libpango-1.0-0 \
+    libcairo2 libasound2 \
+    imagemagick ghostscript poppler-utils \
+    libcairo2-dev pkg-config \
+    fonts-noto fonts-roboto fonts-open-sans fonts-lato \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Create venv with system-site-packages for uno access
 RUN python3 -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
@@ -33,7 +50,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Install runtime deps
 RUN pip install --no-cache-dir \
   fastapi uvicorn[standard] python-multipart pymupdf prometheus-client ujson \
-  unoserver
+  unoserver "redis[hiredis]>=5.0.0"
+
+# Content agent deps
+RUN pip install --no-cache-dir \
+  matplotlib cairosvg svglib reportlab pandas openpyxl \
+  jinja2 playwright python-pptx deepagents langchain-openai \
+  && playwright install chromium
 
 WORKDIR /app
 COPY src/ ./src/
@@ -47,7 +70,7 @@ COPY prisma/ ./prisma/
 
 # Non-root user
 RUN useradd -m -u 10001 appuser
-RUN mkdir -p /data && chown -R appuser:appuser /data /app /opt/venv
+RUN mkdir -p /data /data/workspaces && chown -R appuser:appuser /data /app /opt/venv
 USER appuser
 
 # Generate Prisma client as appuser to avoid permission issues

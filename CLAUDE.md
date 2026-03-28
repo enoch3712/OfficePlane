@@ -112,3 +112,79 @@ docker compose build api --no-cache
 docker compose up -d api
 docker exec officeplane-api pip install Pillow
 ```
+
+---
+
+## Agent Harness (Quality Enforcement)
+
+This is a **harness-engineered codebase**. Agents are primary developers — the harness enforces quality mechanically. `/dev-loop` is the standard workflow.
+
+### Three Layers of Enforcement
+
+| Layer | What | Trigger |
+|-------|------|---------|
+| **Claude Code Hooks** | Auto-format, dirty/reviewed markers, stop-gate | Every edit, every tool call |
+| **Pre-commit Hook** | `check-all.sh` scoped to staged files | `git commit` |
+| **Agent Review Loop** | 5 specialist subagents verify quality | `/dev-loop` or `/review-all` |
+
+### Quality Checklist
+
+```bash
+./scripts/check-all.sh              # all checks (backend + frontend)
+./scripts/check-all.sh backend      # backend only
+./scripts/check-all.sh frontend     # frontend only
+```
+
+Pipeline: ruff check -> ruff format -> pytest -> tsc -> eslint -> build.
+
+### Skills (invoke with `/skill-name`)
+
+| Skill | Purpose |
+|-------|---------|
+| `/validate` | Quality gate: ruff + pytest + tsc + eslint |
+| `/dev-loop` | Full loop: plan -> validate -> test -> review -> improve (max 5 iterations) |
+| `/entropy-sweep` | Detect and fix code drift |
+| `/harness` | Improve and maintain the harness |
+| `/review-arch` | Architecture review |
+| `/review-security` | Security review |
+| `/review-ui` | Frontend/UI review |
+| `/review-tests` | Test quality review |
+| `/review-all` | Run all relevant reviewers in parallel |
+| `/setup-harness` | Reconfigure harness for this project |
+
+### Subagents (`.claude/agents/`)
+
+| Agent | Role |
+|-------|------|
+| `arch-guardian` | Backend architecture compliance |
+| `security-auditor` | OWASP Top 10, auth patterns, input validation |
+| `test-inspector` | Test quality + coverage verification |
+| `ui-guardian` | Next.js App Router, design system, TypeScript |
+| `entropy-sweeper` | Anti-entropy: detect -> classify -> fix -> verify |
+
+### Hooks (`.claude/settings.json`)
+
+- **PostToolUse:** Auto-formats `.py`; tracks backend/frontend dirty/changed/reviewed markers
+- **Stop:** Quality gate — blocks if code changed without checks or reviews
+
+### Harness Config
+
+Project-specific values in `harness.config.sh`:
+- Slug: `officeplane`
+- Backend: `src/` in Docker service `api`
+- Frontend: `ui/`
+
+### Mechanical Checks (`checks/`)
+
+```bash
+docker compose exec -T api python -m checks          # all checks
+docker compose exec -T api python -m checks --json    # JSON output
+docker compose exec -T api python -m checks --list-rules
+```
+
+3 check modules, 9 rules:
+- `security_patterns` — no hardcoded secrets, no raw SQL, no path traversal
+- `file_limits` — 300 line files, 50 line functions, 10 route handlers
+- `naming_consistency` — HTTP verb naming, boolean naming, no fetch_/retrieve_
+
+**`/dev-loop` is the standard workflow.**

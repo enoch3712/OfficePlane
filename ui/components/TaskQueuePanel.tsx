@@ -5,6 +5,52 @@ import { api } from '@/lib/api'
 import { TaskState, TaskPriority } from '@/lib/types'
 import { List, XCircle, RefreshCw, Clock, AlertCircle } from 'lucide-react'
 import { TimeAgo } from './TimeAgo'
+import { cn } from '@/lib/cn'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
+import { LoadingState } from '@/components/ui/loading-state'
+import { StatusIndicator } from '@/components/ui/status-indicator'
+
+const borderColorByState: Record<TaskState, string> = {
+  [TaskState.RUNNING]: 'border-l-primary',
+  [TaskState.RETRYING]: 'border-l-primary',
+  [TaskState.QUEUED]: 'border-l-amber-400',
+  [TaskState.FAILED]: 'border-l-red-500',
+  [TaskState.TIMEOUT]: 'border-l-red-500',
+  [TaskState.COMPLETED]: 'border-l-border',
+  [TaskState.CANCELLED]: 'border-l-border',
+}
+
+const badgeVariantByState: Record<TaskState, 'accent' | 'warning' | 'error' | 'neutral'> = {
+  [TaskState.RUNNING]: 'accent',
+  [TaskState.RETRYING]: 'accent',
+  [TaskState.QUEUED]: 'warning',
+  [TaskState.FAILED]: 'error',
+  [TaskState.TIMEOUT]: 'error',
+  [TaskState.COMPLETED]: 'neutral',
+  [TaskState.CANCELLED]: 'neutral',
+}
+
+const badgeLabelByState: Record<TaskState, string> = {
+  [TaskState.RUNNING]: 'Running',
+  [TaskState.RETRYING]: 'Retrying',
+  [TaskState.QUEUED]: 'Queued',
+  [TaskState.FAILED]: 'Failed',
+  [TaskState.TIMEOUT]: 'Timeout',
+  [TaskState.COMPLETED]: 'Completed',
+  [TaskState.CANCELLED]: 'Cancelled',
+}
+
+const statusIndicatorByState: Record<TaskState, 'active' | 'warning' | 'error' | 'completed' | 'pending'> = {
+  [TaskState.RUNNING]: 'active',
+  [TaskState.RETRYING]: 'active',
+  [TaskState.QUEUED]: 'warning',
+  [TaskState.FAILED]: 'error',
+  [TaskState.TIMEOUT]: 'error',
+  [TaskState.COMPLETED]: 'completed',
+  [TaskState.CANCELLED]: 'pending',
+}
 
 export function TaskQueuePanel() {
   const queryClient = useQueryClient()
@@ -32,156 +78,125 @@ export function TaskQueuePanel() {
     [TaskState.QUEUED, TaskState.RUNNING, TaskState.RETRYING].includes(t.state)
   )
 
-  const getStateBadge = (state: TaskState) => {
-    const badges: Record<TaskState, { class: string; label: string }> = {
-      [TaskState.QUEUED]: { class: 'badge badge-queued', label: 'Queued' },
-      [TaskState.RUNNING]: { class: 'badge badge-running', label: 'Running' },
-      [TaskState.COMPLETED]: { class: 'badge badge-completed', label: 'Completed' },
-      [TaskState.FAILED]: { class: 'badge badge-failed', label: 'Failed' },
-      [TaskState.CANCELLED]: { class: 'badge badge-completed', label: 'Cancelled' },
-      [TaskState.RETRYING]: { class: 'badge badge-queued', label: 'Retrying' },
-      [TaskState.TIMEOUT]: { class: 'badge badge-failed', label: 'Timeout' },
-    }
-    const badge = badges[state]
-    return <span className={badge.class}>{badge.label}</span>
-  }
-
-  const getPriorityIndicator = (priority: TaskPriority) => {
-    const colors: Record<TaskPriority, string> = {
-      [TaskPriority.LOW]: 'bg-slate-500',
-      [TaskPriority.NORMAL]: 'bg-blue-500',
-      [TaskPriority.HIGH]: 'bg-[#39ff14]',
-      [TaskPriority.CRITICAL]: 'bg-red-500',
-    }
-    return <div className={`w-1 h-full ${colors[priority]} rounded-l`} />
-  }
-
   if (isLoading) {
     return (
-      <div className="bg-white/[0.02] rounded-lg shadow p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-white/10 rounded w-48" />
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-white/5 rounded" />
-            ))}
-          </div>
-        </div>
-      </div>
+      <Card title="Task Queue">
+        <LoadingState rows={3} />
+      </Card>
     )
   }
 
   return (
-    <div className="bg-white/[0.02] rounded-lg shadow flex flex-col h-[600px]">
-      <div className="p-6 border-b border-white/10">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Task Queue</h2>
-          <p className="text-sm text-slate-500">
-            {activeTasks?.length || 0} active of {tasks?.length || 0} total
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-6">
+    <Card
+      title="Task Queue"
+      subtitle={`${activeTasks?.length || 0} active of ${tasks?.length || 0} total`}
+      className="flex flex-col h-[600px]"
+    >
+      <div className="flex-1 overflow-y-auto -mx-5 px-5">
         {!tasks || tasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500">
-            <List className="w-16 h-16 mb-4" />
-            <p className="text-sm">No tasks in queue</p>
-          </div>
+          <EmptyState
+            icon={<List className="w-12 h-12" />}
+            message="No tasks in queue"
+            detail="Tasks will appear here when queued"
+            className="h-full"
+          />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="relative border border-white/10 rounded-lg hover:border-[#39ff14]/30 hover:shadow-sm transition-all overflow-hidden"
+                className={cn(
+                  'border-l-[3px] bg-depth-1 rounded-lg p-4 transition-colors',
+                  borderColorByState[task.state]
+                )}
               >
-                {getPriorityIndicator(task.priority)}
+                {/* Header: name + badge */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <StatusIndicator status={statusIndicatorByState[task.state]} />
+                    <span className="font-heading font-medium italic text-sm text-foreground truncate">
+                      {task.taskName || task.taskType}
+                    </span>
+                    {task.priority !== TaskPriority.NORMAL && (
+                      <Badge variant="info">{task.priority}</Badge>
+                    )}
+                  </div>
 
-                <div className="p-4 pl-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <List className="w-4 h-4 text-slate-400" />
-                        <span className="font-medium text-white">
-                          {task.taskName || task.taskType}
-                        </span>
-                        {getStateBadge(task.state)}
-                        {task.priority !== TaskPriority.NORMAL && (
-                          <span className="text-xs px-2 py-0.5 bg-white/5 text-slate-400 rounded">
-                            {task.priority}
-                          </span>
-                        )}
-                      </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Badge variant={badgeVariantByState[task.state]}>
+                      {badgeLabelByState[task.state]}
+                    </Badge>
 
-                      <div className="space-y-1 text-sm">
-                        <div className="text-slate-500">
-                          Type: <span className="text-white font-mono text-xs">{task.taskType}</span>
-                        </div>
+                    {task.state === TaskState.FAILED && task.retryCount < task.maxRetries && (
+                      <button
+                        onClick={() => retryMutation.mutate(task.id)}
+                        disabled={retryMutation.isPending}
+                        className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
+                        title="Retry task"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
-                        {task.document && (
-                          <div className="text-slate-500">
-                            Document: <span className="text-white">{task.document.title}</span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            Created <TimeAgo date={task.createdAt} />
-                          </div>
-
-                          {task.retryCount > 0 && (
-                            <div className="flex items-center gap-1 text-amber-400">
-                              <AlertCircle className="w-3 h-3" />
-                              Retry {task.retryCount}/{task.maxRetries}
-                            </div>
-                          )}
-
-                          {task.startedAt && (
-                            <div>
-                              Started <TimeAgo date={task.startedAt} />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {task.errorMessage && (
-                        <div className="mt-2 text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded">
-                          {task.errorMessage}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 ml-4">
-                      {task.state === TaskState.FAILED && task.retryCount < task.maxRetries && (
-                        <button
-                          onClick={() => retryMutation.mutate(task.id)}
-                          disabled={retryMutation.isPending}
-                          className="p-2 text-[#39ff14] hover:bg-[#39ff14]/10 rounded transition-colors"
-                          title="Retry task"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {(task.state === TaskState.QUEUED || task.state === TaskState.RUNNING) && (
-                        <button
-                          onClick={() => cancelMutation.mutate(task.id)}
-                          disabled={cancelMutation.isPending}
-                          className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                          title="Cancel task"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                    {(task.state === TaskState.QUEUED || task.state === TaskState.RUNNING) && (
+                      <button
+                        onClick={() => cancelMutation.mutate(task.id)}
+                        disabled={cancelMutation.isPending}
+                        className="p-1.5 text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
+                        title="Cancel task"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* Type */}
+                <div className="mt-1.5 font-mono text-xs text-muted-foreground">
+                  {task.taskType}
+                </div>
+
+                {/* Document title */}
+                {task.document && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Document: <span className="text-foreground">{task.document.title}</span>
+                  </div>
+                )}
+
+                {/* Metadata row */}
+                <div className="mt-2 flex items-center gap-4 text-xs font-mono text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <TimeAgo date={task.createdAt} />
+                  </span>
+
+                  {task.retryCount > 0 && (
+                    <span className="inline-flex items-center gap-1 text-amber-400">
+                      <AlertCircle className="w-3 h-3" />
+                      Retry {task.retryCount}/{task.maxRetries}
+                    </span>
+                  )}
+
+                  {task.startedAt && (
+                    <span>
+                      Started <TimeAgo date={task.startedAt} />
+                    </span>
+                  )}
+                </div>
+
+                {/* Error message */}
+                {task.errorMessage && (
+                  <div className="mt-2">
+                    <Badge variant="error" className="text-[10px] normal-case tracking-normal max-w-full">
+                      <span className="truncate">{task.errorMessage}</span>
+                    </Badge>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
-    </div>
+    </Card>
   )
 }
