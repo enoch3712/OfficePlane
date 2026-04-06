@@ -7,13 +7,12 @@
 ## Core Platform
 
 ### F-001: Document Conversion Engine
-**Status:** Shipped
-**Description:** HTTP service that converts Office documents (PPTX, PPT, DOCX, XLSX) to canonical PDF format.
-**Endpoint:** `POST /render`
+**Status:** Shipped — Internal
+**Description:** Internal conversion layer that transforms Office documents (PPTX, PPT, DOCX, XLSX) to canonical PDF format. Not exposed as a standalone API endpoint — used internally by the ingestion pipeline and other platform services.
 **Key details:**
-- Accepts file upload with configurable DPI (72–300), output format (pdf/images/both), image format (png/jpeg)
-- Returns manifest with checksums, timings, driver version
-- Supports inline (base64) and artifact (file URL) response modes
+- Configurable DPI (72–300), output format (pdf/images/both), image format (png/jpeg)
+- Manifest with checksums, timings, driver version
+- Supports inline (base64) and artifact (file URL) output modes
 
 ### F-002: Multi-Driver Architecture
 **Status:** Shipped
@@ -27,8 +26,8 @@
 **Config:** `OFFICEPLANE_DRIVER` env var. Pool size and timeout configurable.
 
 ### F-003: Per-Page Image Rendering
-**Status:** Shipped
-**Description:** Renders each PDF page to PNG or JPEG at configurable DPI. Uses PyMuPDF for rendering and Pillow for compression/optimization.
+**Status:** Shipped — Internal
+**Description:** Internal rendering layer that converts each PDF page to PNG or JPEG at configurable DPI. Uses PyMuPDF for rendering and Pillow for compression/optimization. Consumed by the ingestion pipeline for vision analysis — not a standalone feature.
 
 ### F-004: Enterprise Observability
 **Status:** Shipped
@@ -42,14 +41,15 @@
 ## Document Ingestion Pipeline
 
 ### F-010: Format Detection
-**Status:** Shipped
-**Description:** Automatic format detection via magic bytes for DOCX, PDF, XLSX, PPTX.
+**Status:** Shipped — Internal
+**Description:** Automatic format detection via magic bytes for DOCX, PDF, XLSX, PPTX. Internal utility consumed by the ingestion pipeline — not a standalone feature.
 **File:** `src/officeplane/ingestion/format_detector.py`
 
 ### F-011: Vision-Based Document Analysis
 **Status:** Shipped
-**Description:** Converts documents to images, then uses Gemini vision API to extract structured content (chapters, sections, pages) with semantic understanding.
-**Pipeline:** Format detect → PDF convert → Page render → Image compress → Vision analyze → Structure parse → Store
+**Description:** Core ingestion pipeline. Converts documents (PDF/DOCX) to images, then uses vision LLM to extract structured content (chapters, sections, pages) with semantic understanding and per-section summarization.
+**Pipeline:** Format detect → PDF convert → Page render → Image compress → Vision analyze → Structure parse → Summarize → Store
+**Output:** Hierarchical document structure with content and summaries at each level.
 **Config:**
 - `OFFICEPLANE_INGESTION_VISION_PROVIDER` — `gemini` or `mock`
 - `OFFICEPLANE_INGESTION_VISION_MODEL` — default `gemini-3-flash-preview`
@@ -69,40 +69,42 @@
 
 ## Agentic Document Editing
 
-### F-020: Plan-Execute-Verify Protocol
+### F-020: Deep Agent Runtime
 **Status:** Shipped
-**Description:** Replaces chatty N-round-trip MCP pattern with a single-request workflow:
-1. **Plan** — Client sends intent, server generates structured action plan with dependency placeholders (`$node_0.id`)
-2. **Execute** — Server runs all actions atomically (all-or-nothing)
-3. **Verify** — AI confirms the intent was achieved, not just that actions ran
+**Description:** Autonomous agent runtime for document creation and editing. Replaces the previous action-tree model with a skill-focused harness approach — the agent operates with tool access and quality enforcement rather than executing a predefined action plan.
+**Drivers:**
+| Driver | Description | Use Case |
+|--------|-------------|----------|
+| `deepagents_sdk` | Python SDK integration (`deepagents` package) | Default, in-process |
+| `deepagents_cli` | CLI subprocess (`deepagents --yes`) | Isolation, fallback |
 
-**Endpoints:**
-- `POST /documents/{id}/plan` — Generate plan from prompt
-- `POST /documents/{id}/execute` — Execute plan atomically
-- `POST /documents/{id}/verify` — Verify intent fulfillment
+**Key details:**
+- Agent receives workspace, model, message, and system prompt
+- Streams normalized events (delta text, tool calls, tool results)
+- Falls back to direct LLM API if Deep Agent SDK is unavailable
+**File:** `src/officeplane/content_agent/`
 
-### F-021: Action System
+### F-021: Skill-Based Editing
 **Status:** Shipped
-**Available actions:**
-| Action | Description | Inputs |
-|--------|-------------|--------|
-| `add_chapter` | Add chapter to document | `document_id`, `title`, `order_index` |
-| `add_section` | Add section to chapter | `chapter_id`, `title`, `order_index` |
-| `write_page` | Create page with content | `section_id`, `content`, `page_number` |
-| `edit_page` | Modify existing page | `page_id`, `content` |
-| `delete_page` | Remove a page | `page_id` |
+**Description:** Document editing capabilities structured as discrete, composable skills rather than a fixed action vocabulary. Each skill encapsulates a complete editing workflow (generate, modify, restructure) with built-in validation.
+**Skills:**
+| Skill | Description |
+|-------|-------------|
+| `generate_docx` | Generate Word documents from intent |
+| `generate_pptx` | Generate PowerPoint presentations from intent |
 
-**Dependency resolution:** `$node_N.field` placeholders auto-resolve during execution.
+**Harness enforcement:** Skills run under the agent harness — every edit is auto-formatted, validated, and reviewed by specialist subagents (arch-guardian, security-auditor, test-inspector).
+**File:** `src/officeplane/skills/`
 
 ### F-022: Document Editor (doctools)
 **Status:** Shipped
-**Description:** Context-manager-based editor for Word documents with batch operations, full transaction support (rollback on failure), and structured Result[T] error types.
+**Description:** Context-manager-based editor for Word documents with batch operations, full transaction support (rollback on failure), and structured Result[T] error types. Used by skills as the underlying manipulation layer.
 **Capabilities:** StructureReader, ContentModifier, TableBuilder, PlanExecutor
 **File:** `src/officeplane/doctools/`
 
 ### F-023: Spreadsheet Editor (sheettools)
 **Status:** Shipped
-**Description:** Excel spreadsheet editing with plan-execute-rollback pattern. Supports cell references (A1, B2), sheet operations, and atomic execution.
+**Description:** Excel spreadsheet editing with plan-execute-rollback pattern. Supports cell references (A1, B2), sheet operations, and atomic execution. Used by skills as the underlying manipulation layer.
 **Capabilities:** SheetReader, CellModifier, TableBuilder, SpreadsheetPlan
 **File:** `src/officeplane/sheettools/`
 
@@ -209,7 +211,7 @@
 
 ### F-104: MCP Server
 **Status:** Planned
-**Description:** Expose Plan-Execute-Verify as an MCP server. Single `officeplane_edit` tool call with built-in verification replaces multi-step tool sequences.
+**Description:** Expose OfficePlane skills as an MCP server. Single `officeplane_edit` tool call invokes the Deep Agent with the appropriate skill, replacing multi-step tool sequences.
 **Why:** Native integration with Claude, Cursor, and other MCP-compatible clients.
 
 ### F-105: PowerPoint Editor (slidetools)
@@ -233,8 +235,8 @@
 **Why:** Required for production multi-user deployments. Auth hooks are designed-in but not yet implemented.
 
 ### F-109: Agent Workflow Harness
-**Status:** Not started
-**Description:** End-to-end agent workflow runner that chains: open document → analyze → plan → execute → verify → close. Supports long-running tasks (4+ hours) with checkpointing.
+**Status:** In progress
+**Description:** End-to-end agent workflow runner built on the skill-focused harness. Chains: open document → analyze → select skill → execute via Deep Agent → verify → close. Supports long-running tasks (4+ hours) with checkpointing and harness-enforced quality gates at each step.
 **Why:** The north star — replace a human who uses Office apps for multi-hour tasks.
 
 ---
@@ -243,16 +245,16 @@
 
 | ID | Feature | Status | Category |
 |----|---------|--------|----------|
-| F-001 | Document Conversion Engine | Shipped | Core |
+| F-001 | Document Conversion Engine | Shipped — Internal | Core |
 | F-002 | Multi-Driver Architecture | Shipped | Core |
-| F-003 | Per-Page Image Rendering | Shipped | Core |
+| F-003 | Per-Page Image Rendering | Shipped — Internal | Core |
 | F-004 | Enterprise Observability | Shipped | Core |
-| F-010 | Format Detection | Shipped | Ingestion |
+| F-010 | Format Detection | Shipped — Internal | Ingestion |
 | F-011 | Vision-Based Document Analysis | Shipped | Ingestion |
 | F-012 | Hierarchical Document Storage | Shipped | Ingestion |
 | F-013 | Vector Embeddings (RAG) | Shipped | Ingestion |
-| F-020 | Plan-Execute-Verify Protocol | Shipped | Agentic |
-| F-021 | Action System | Shipped | Agentic |
+| F-020 | Deep Agent Runtime | Shipped | Agentic |
+| F-021 | Skill-Based Editing | Shipped | Agentic |
 | F-022 | Document Editor (doctools) | Shipped | Agentic |
 | F-023 | Spreadsheet Editor (sheettools) | Shipped | Agentic |
 | F-030 | Workchestrator | Shipped | Orchestration |
@@ -273,4 +275,4 @@
 | F-106 | Multi-Document Operations | Not started | Agentic |
 | F-107 | Diff & Rollback UI | Not started | UI |
 | F-108 | Authentication & Multi-Tenancy | Not started | Core |
-| F-109 | Agent Workflow Harness | Not started | Agentic |
+| F-109 | Agent Workflow Harness | In progress | Agentic |
