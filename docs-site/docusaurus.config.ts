@@ -31,7 +31,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/officeplane/officeplane/tree/main/docs-site/',
-          routeBasePath: 'docs',
+          routeBasePath: '/',
         },
         blog: false,
         theme: {
@@ -62,7 +62,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          to: '/docs/api-reference/endpoints',
+          to: '/api-reference/endpoints',
           label: 'API Reference',
           position: 'left',
         },
@@ -79,17 +79,17 @@ const config: Config = {
         {
           title: 'Documentation',
           items: [
-            { label: 'Overview', to: '/docs/overview' },
-            { label: 'Quick Start', to: '/docs/getting-started/quickstart' },
-            { label: 'Architecture', to: '/docs/architecture/overview' },
+            { label: 'Overview', to: '/overview' },
+            { label: 'Quick Start', to: '/getting-started/quickstart' },
+            { label: 'Architecture', to: '/architecture/overview' },
           ],
         },
         {
           title: 'Features',
           items: [
-            { label: 'Document Ingestion', to: '/docs/features/ingestion' },
-            { label: 'Content Generation', to: '/docs/features/content-generation' },
-            { label: 'Document Hooks', to: '/docs/features/hooks' },
+            { label: 'Document Ingestion', to: '/features/ingestion' },
+            { label: 'Content Generation', to: '/features/content-generation' },
+            { label: 'Document Hooks', to: '/features/hooks' },
           ],
         },
         {
