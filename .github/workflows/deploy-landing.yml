@@ -30,6 +30,8 @@ jobs:
 
       - name: Build landing page
         working-directory: landing
+        env:
+          VITE_BASE_PATH: /OfficePlane/
         run: npm ci && npm run build
 
       - name: Build docs
