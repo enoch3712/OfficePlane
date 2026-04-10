@@ -29,7 +29,7 @@ export default function App() {
             </div>
           </a>
           <div className="flex items-center gap-4">
-            <a href={repoUrl} className="hidden sm:inline text-sm text-slate-400 transition hover:text-white">
+            <a href="/OfficePlane/docs/" className="hidden sm:inline text-sm text-slate-400 transition hover:text-white">
               Docs
             </a>
             <a
@@ -75,7 +75,7 @@ export default function App() {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </a>
               <a
-                href={repoUrl}
+                href="/OfficePlane/docs/"
                 className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-semibold text-slate-100 transition hover:bg-white/10"
               >
                 Read the docs

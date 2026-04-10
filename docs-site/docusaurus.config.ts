@@ -11,13 +11,13 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://officeplane.dev',
-  baseUrl: '/',
+  url: 'https://enoch3712.github.io',
+  baseUrl: '/OfficePlane/docs/',
 
-  organizationName: 'officeplane',
-  projectName: 'officeplane',
+  organizationName: 'enoch3712',
+  projectName: 'OfficePlane',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
 
   i18n: {
     defaultLocale: 'en',
