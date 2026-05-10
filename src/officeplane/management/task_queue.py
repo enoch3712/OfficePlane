@@ -303,8 +303,52 @@ class TaskQueue:
             await asyncio.sleep(1)
             return {"status": "completed"}
 
+    def _skill_executor(self):
+        if not hasattr(self, "_executor_singleton"):
+            from officeplane.content_agent.skill_executor import SkillExecutor
+
+            self._executor_singleton = SkillExecutor()
+        return self._executor_singleton
+
     async def _run_skill_job(self, job_id: str, payload: dict) -> dict:
         """Execute a skill-based job."""
+        from officeplane.content_agent.skill_executor import (
+            SkillExecutor,
+            SkillNotFoundError,
+            SkillInputError,
+        )
+
+        skill_name = payload["skill"]
+        inputs = payload.get("params", {})
+
+        # New SKILL.md path first
+        try:
+            executor = self._skill_executor()
+            executor.get_skill(skill_name)
+        except SkillNotFoundError:
+            executor = None
+
+        if executor is not None:
+            from officeplane.content_agent.streaming import sse_manager
+
+            if job_id not in sse_manager._streams:
+                sse_manager.create_stream(job_id)
+            await sse_manager.push_event(
+                job_id, "start", {"job_id": job_id, "skill": skill_name}
+            )
+            try:
+                output = await executor.invoke(skill_name, inputs)
+            except SkillInputError as exc:
+                await sse_manager.push_event(
+                    job_id, "stop", {"status": "failed", "error": str(exc)}
+                )
+                return {"status": "failed", "error": str(exc)}
+            await sse_manager.push_event(
+                job_id, "stop", {"status": "completed", "output": output}
+            )
+            return {"status": "completed", "output": output}
+
+        # Legacy path (preserved as-is below)
         from officeplane.skills import registry
         from officeplane.skills.base import SkillContext
         from officeplane.content_agent.config import ContentAgentConfig
@@ -317,7 +361,6 @@ class TaskQueue:
         config = ContentAgentConfig.from_env()
         workspace = WorkspaceManager(config.workspace_root).create(job_id)
         model = payload.get("model") or config.model
-        skill_name = payload["skill"]
 
         await sse_manager.push_event(job_id, "start", {"job_id": job_id, "skill": skill_name})
 
@@ -328,7 +371,7 @@ class TaskQueue:
                 workspace=workspace,
                 model=model,
                 driver=payload.get("driver", skill.default_driver),
-                params=payload.get("params", {}),
+                params=inputs,
             )
 
             result = await skill.run(ctx)

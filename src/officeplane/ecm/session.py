@@ -87,14 +87,29 @@ class ECMSession:
             raise RuntimeError(
                 f"Cannot add jobs — session {self.session_id} is {self.state.value}"
             )
-        from officeplane.skills.registry import get as get_skill
 
-        skill = get_skill(skill_name)   # raises KeyError for unknown skills
+        from officeplane.content_agent.skill_executor import (
+            SkillExecutor,
+            SkillNotFoundError,
+        )
+
+        executor = SkillExecutor()
+        default_driver = "deepagents_sdk"
+        try:
+            executor.get_skill(skill_name)
+            # SKILL.md skill resolved.
+        except SkillNotFoundError:
+            # Fall back to legacy registry.
+            from officeplane.skills.registry import get as get_skill_legacy
+
+            legacy = get_skill_legacy(skill_name)  # raises KeyError if absent
+            default_driver = legacy.default_driver
+
         job = ECMJob(
             job_id=f"{self.session_id}_j{len(self.jobs)}",
             skill_name=skill_name,
             params=params,
-            driver=driver or skill.default_driver,
+            driver=driver or default_driver,
             model=model,
         )
         self.jobs.append(job)
@@ -171,12 +186,44 @@ class ECMSession:
 
     async def _execute_jobs(self) -> None:
         """Run all jobs concurrently in isolated staging workspaces."""
-        from officeplane.skills.base import SkillContext
-        from officeplane.skills.registry import get as get_skill
+        from officeplane.content_agent.skill_executor import (
+            SkillExecutor,
+            SkillNotFoundError,
+        )
+
+        _executor = SkillExecutor()
 
         async def _run_one(job: ECMJob) -> None:
             workspace = self._staging / job.job_id
             workspace.mkdir(parents=True, exist_ok=True)
+
+            job.state = "running"
+
+            # Try SKILL.md executor first
+            try:
+                _executor.get_skill(job.skill_name)
+                skill_md_found = True
+            except SkillNotFoundError:
+                skill_md_found = False
+
+            if skill_md_found:
+                from officeplane.content_agent.skill_executor import SkillInputError
+
+                try:
+                    output = await _executor.invoke(job.skill_name, job.params)
+                except SkillInputError as exc:
+                    job.state = "failed"
+                    job.error = str(exc)
+                    raise RuntimeError(
+                        f"Job {job.job_id} ({job.skill_name}) failed: {job.error}"
+                    )
+                job.state = "completed"
+                job.result = output
+                return
+
+            # Legacy path
+            from officeplane.skills.base import SkillContext
+            from officeplane.skills.registry import get as get_skill
 
             skill = get_skill(job.skill_name)
             ctx = SkillContext(
@@ -188,7 +235,6 @@ class ECMSession:
                 session_id=self.session_id,
             )
 
-            job.state = "running"
             result = await skill.run(ctx)
 
             validation_errors = await skill.validate(ctx, result)
