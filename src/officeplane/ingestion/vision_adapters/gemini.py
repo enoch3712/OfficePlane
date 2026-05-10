@@ -30,6 +30,7 @@ class GeminiVisionAdapter:
         api_key: str,
         model: str = "gemini-2.0-flash",
         max_images: int = 16,
+        call_timeout_sec: int = 120,
     ):
         """Initialize the Gemini adapter.
 
@@ -37,6 +38,7 @@ class GeminiVisionAdapter:
             api_key: Google API key for Gemini.
             model: Gemini model name.
             max_images: Maximum images per API call.
+            call_timeout_sec: Per-call timeout. The SDK occasionally hangs.
 
         Raises:
             ImportError: If google-generativeai is not installed.
@@ -54,6 +56,7 @@ class GeminiVisionAdapter:
         self._api_key = api_key
         self._model_name = model
         self._max_images = max_images
+        self._call_timeout_sec = call_timeout_sec
         self._client: Optional[Any] = None
 
     def _get_client(self) -> Any:
@@ -98,12 +101,25 @@ class GeminiVisionAdapter:
             # Build content parts
             parts = self._build_parts(images, prompt, system_prompt, start_page)
 
-            # Run synchronous API call in thread pool
+            # Run synchronous API call in thread pool with a hard timeout —
+            # the google-generativeai SDK occasionally hangs on certain
+            # multi-image batches with no error.
             client = self._get_client()
-            response = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: client.generate_content(parts),
-            )
+            try:
+                response = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: client.generate_content(parts),
+                    ),
+                    timeout=self._call_timeout_sec,
+                )
+            except asyncio.TimeoutError:
+                return VisionResponse(
+                    error=(
+                        f"Gemini call timed out after {self._call_timeout_sec}s "
+                        f"on batch starting page {start_page} ({len(images)} images)"
+                    )
+                )
 
             # Extract response text
             raw_text = response.text if hasattr(response, "text") else ""
