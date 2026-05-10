@@ -5,9 +5,9 @@ Supports nesting via parent_id and many-to-many with Documents.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List as _List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from prisma import Json, Prisma
 from pydantic import BaseModel
 
@@ -223,3 +223,62 @@ async def remove_document_from_collection(collection_id: str, document_id: str):
         return None
     finally:
         await db.disconnect()
+
+
+@router.post("/{collection_id}/upload", status_code=201)
+async def upload_documents_to_collection(
+    collection_id: str,
+    files: _List[UploadFile] = File(...),
+):
+    """Upload + ingest one or more files and link each to the collection."""
+    from officeplane.api.management_routes import (
+        _ingest_uploaded_file,
+        _link_document_to_collection,
+    )
+
+    db = Prisma()
+    await db.connect()
+    try:
+        coll = await db.collection.find_unique(where={"id": collection_id})
+        if not coll:
+            raise HTTPException(status_code=404, detail="Collection not found")
+    finally:
+        await db.disconnect()
+
+    results = []
+    for f in files:
+        contents = await f.read()
+        try:
+            doc = await _ingest_uploaded_file(
+                contents=contents,
+                filename=f.filename,
+                title=None,
+                author=None,
+            )
+            await _link_document_to_collection(doc["id"], collection_id)
+            results.append(
+                {
+                    "filename": f.filename,
+                    "status": "ingested",
+                    "document_id": doc["id"],
+                    "title": doc.get("title"),
+                }
+            )
+        except HTTPException as exc:
+            results.append(
+                {
+                    "filename": f.filename,
+                    "status": "failed",
+                    "error": exc.detail,
+                    "status_code": exc.status_code,
+                }
+            )
+        except Exception as exc:
+            results.append(
+                {
+                    "filename": f.filename,
+                    "status": "failed",
+                    "error": str(exc),
+                }
+            )
+    return {"collection_id": collection_id, "results": results}

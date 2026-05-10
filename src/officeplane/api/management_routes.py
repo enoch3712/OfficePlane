@@ -318,123 +318,194 @@ async def update_orchestration_settings(request: UpdateOrchestrationSettingsRequ
 # ============================================================
 
 
+_ALLOWED_FORMATS = {
+    DocumentFormat.DOC,
+    DocumentFormat.DOCX,
+    DocumentFormat.PDF,
+    DocumentFormat.PPTX,
+    DocumentFormat.PPT,
+}
+
+
+async def _ingest_uploaded_file(
+    *,
+    contents: bytes,
+    filename: str,
+    title: Optional[str],
+    author: Optional[str],
+) -> dict:
+    """Detect format, ingest, store source bytes, broadcast.
+
+    Returns the serialised document dict.
+    Raises HTTPException on validation/ingestion failure.
+    """
+    import os
+    import logging
+
+    if not filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    doc_format = detect_format(contents, filename)
+    if doc_format not in _ALLOWED_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Only .doc, .docx, .pdf, .ppt, and .pptx files are supported "
+                f"(detected: {doc_format.value})"
+            ),
+        )
+
+    database_url = os.getenv(
+        "DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane"
+    )
+    doc_store = DocumentStore(database_url=database_url)
+
+    try:
+        # Lazy import to avoid requiring PIL at startup
+        from ..ingestion.ingestion_service import VisionIngestionService
+        from ..drivers.libreoffice_driver import LibreOfficeDriver
+
+        ingestion_config = IngestionConfig()
+        try:
+            ingestion_config.validate()
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        # Use LibreOffice driver for DOCX/DOC/PPTX/PPT->PDF conversion
+        driver = LibreOfficeDriver() if doc_format in (
+            DocumentFormat.DOC,
+            DocumentFormat.DOCX,
+            DocumentFormat.PPTX,
+            DocumentFormat.PPT,
+        ) else None
+
+        ingestion_service = VisionIngestionService(
+            driver=driver,
+            doc_store=doc_store,
+            config=ingestion_config,
+        )
+        result = await ingestion_service.ingest(
+            data=contents,
+            filename=filename,
+        )
+
+        if not result.success or result.document is None:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error ingesting document: {result.error or 'Unknown error'}",
+            )
+
+        full_document = result.document
+
+        if not full_document:
+            raise HTTPException(status_code=500, detail="Failed to load document structure")
+
+        if title or author:
+            updated = await doc_store.update_document(
+                full_document.id,
+                title=title,
+                author=author,
+            )
+            if updated:
+                full_document.title = updated.title
+                full_document.author = updated.author
+
+        # Store the original file bytes for download using raw SQL
+        # (Prisma Python client has issues with Bytes serialization)
+        try:
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            try:
+                await conn.execute(
+                    """
+                    UPDATE documents
+                    SET source_file = $1,
+                        source_format = $2,
+                        file_name = $3
+                    WHERE id = $4
+                    """,
+                    contents,
+                    doc_format.value,
+                    filename,
+                    full_document.id,
+                )
+            finally:
+                await conn.close()
+        except Exception as e:
+            # Log but don't fail the upload if source file storage fails
+            logging.error(f"Failed to store source file: {e}")
+
+        # Broadcast event
+        await broadcast_event(
+            "document_uploaded",
+            {
+                "id": str(full_document.id),
+                "title": full_document.title,
+                "author": full_document.author,
+                "filename": filename,
+            },
+        )
+
+        return _serialize_document(full_document)
+    finally:
+        await doc_store.close()
+
+
+async def _link_document_to_collection(document_id: str, collection_id: str) -> None:
+    """Link an already-ingested document to a collection (upsert)."""
+    from prisma import Prisma
+
+    db = Prisma()
+    await db.connect()
+    try:
+        coll = await db.collection.find_unique(where={"id": collection_id})
+        if not coll:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        await db.documentcollection.upsert(
+            where={
+                "documentId_collectionId": {
+                    "documentId": document_id,
+                    "collectionId": collection_id,
+                }
+            },
+            data={
+                "create": {"documentId": document_id, "collectionId": collection_id},
+                "update": {},
+            },
+        )
+    finally:
+        await db.disconnect()
+
+
 @router.post("/documents/upload")
 async def upload_document(
     file: UploadFile = File(...),
     title: Optional[str] = None,
     author: Optional[str] = None,
+    collection_id: Optional[str] = None,
 ):
     """
-    Upload and import a Word or PDF document
+    Upload and import a Word, PDF, or PowerPoint document.
 
     Parses the document structure (chapters, sections, pages) and stores it in the database.
     Returns the document with its full structure.
+
+    Pass ?collection_id=<id> to automatically link the new document to a collection.
     """
-    # Validate file type
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
     try:
-        # Read file contents
         contents = await file.read()
-
-        doc_format = detect_format(contents, file.filename)
-        if doc_format not in (DocumentFormat.DOC, DocumentFormat.DOCX, DocumentFormat.PDF):
-            raise HTTPException(
-                status_code=400,
-                detail="Only .doc, .docx, and .pdf files are supported",
-            )
-
-        # Create document store with database URL
-        import os
-        database_url = os.getenv("DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane")
-        doc_store = DocumentStore(database_url=database_url)
-
-        try:
-            # Lazy import to avoid requiring PIL at startup
-            from ..ingestion.ingestion_service import VisionIngestionService
-            from ..drivers.libreoffice_driver import LibreOfficeDriver
-
-            ingestion_config = IngestionConfig()
-            try:
-                ingestion_config.validate()
-            except ValueError as exc:
-                raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-            # Use LibreOffice driver for DOCX->PDF conversion
-            driver = LibreOfficeDriver() if doc_format in (DocumentFormat.DOC, DocumentFormat.DOCX) else None
-
-            ingestion_service = VisionIngestionService(
-                driver=driver,
-                doc_store=doc_store,
-                config=ingestion_config,
-            )
-            result = await ingestion_service.ingest(
-                data=contents,
-                filename=file.filename,
-            )
-
-            if not result.success or result.document is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Error ingesting document: {result.error or 'Unknown error'}",
-                )
-
-            full_document = result.document
-
-            if not full_document:
-                raise HTTPException(status_code=500, detail="Failed to load document structure")
-
-            if title or author:
-                updated = await doc_store.update_document(
-                    full_document.id,
-                    title=title,
-                    author=author,
-                )
-                if updated:
-                    full_document.title = updated.title
-                    full_document.author = updated.author
-
-            # Store the original file bytes for download using raw SQL
-            # (Prisma Python client has issues with Bytes serialization)
-            try:
-                import asyncpg
-                conn = await asyncpg.connect(database_url)
-                try:
-                    await conn.execute(
-                        """
-                        UPDATE documents
-                        SET source_file = $1,
-                            source_format = $2,
-                            file_name = $3
-                        WHERE id = $4
-                        """,
-                        contents,
-                        doc_format.value,
-                        file.filename,
-                        full_document.id,
-                    )
-                finally:
-                    await conn.close()
-            except Exception as e:
-                # Log but don't fail the upload if source file storage fails
-                import logging
-                logging.error(f"Failed to store source file: {e}")
-
-            # Broadcast event
-            await broadcast_event(
-                "document_uploaded",
-                {
-                    "id": str(full_document.id),
-                    "title": full_document.title,
-                    "author": full_document.author,
-                    "filename": file.filename,
-                },
-            )
-
-            return _serialize_document(full_document)
-        finally:
-            await doc_store.close()
+        doc = await _ingest_uploaded_file(
+            contents=contents,
+            filename=file.filename,
+            title=title,
+            author=author,
+        )
+        if collection_id:
+            await _link_document_to_collection(doc["id"], collection_id)
+        return doc
 
     except HTTPException:
         raise
