@@ -41,13 +41,46 @@ model Document {
   summarizedAt  DateTime? @map("summarized_at") @db.Timestamptz
 
   // Relations
-  chapters  Chapter[]
-  chunks    Chunk[]
-  instances DocumentInstance[]
-  tasks     Task[]
-  history   ExecutionHistory[]
+  chapters    Chapter[]
+  chunks      Chunk[]
+  instances   DocumentInstance[]
+  tasks       Task[]
+  history     ExecutionHistory[]
+  collections DocumentCollection[]
 
   @@map("documents")
+}
+
+model Collection {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  parentId    String?  @map("parent_id") @db.Uuid
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  parent   Collection?  @relation("CollectionHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Collection[] @relation("CollectionHierarchy")
+  documents DocumentCollection[]
+
+  @@index([parentId], name: "idx_collections_parent")
+  @@index([name], name: "idx_collections_name")
+  @@map("collections")
+}
+
+model DocumentCollection {
+  documentId   String   @map("document_id") @db.Uuid
+  collectionId String   @map("collection_id") @db.Uuid
+  addedAt      DateTime @default(now()) @map("added_at") @db.Timestamptz
+
+  document   Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, collectionId])
+  @@index([collectionId], name: "idx_doc_coll_collection")
+  @@index([documentId], name: "idx_doc_coll_document")
+  @@map("document_collections")
 }
 
 model Chapter {
