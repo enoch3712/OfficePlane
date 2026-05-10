@@ -1,0 +1,51 @@
+"""LiteLLM-backed chat model factory.
+
+Provider-agnostic. Pass a `provider/model` string (e.g. ``deepseek/deepseek-chat``,
+``openai/gpt-4o-mini``, ``gemini/gemini-2.5-pro``, ``anthropic/claude-opus-4-7``).
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+from langchain_litellm import ChatLiteLLM
+
+
+@dataclass
+class ModelConfig:
+    model: str
+    temperature: float = 0.0
+    max_tokens: int | None = None
+    timeout: int = 120
+    api_base: str | None = None
+    api_key: str | None = None
+
+
+def build_chat_model(cfg: ModelConfig) -> ChatLiteLLM:
+    if not cfg.model:
+        raise ValueError(
+            "ModelConfig.model is required (e.g. 'deepseek/deepseek-chat')"
+        )
+
+    kwargs: dict[str, object] = {
+        "model": cfg.model,
+        "temperature": cfg.temperature,
+        "request_timeout": cfg.timeout,
+    }
+    if cfg.max_tokens is not None:
+        kwargs["max_tokens"] = cfg.max_tokens
+    if cfg.api_base:
+        kwargs["api_base"] = cfg.api_base
+    if cfg.api_key:
+        kwargs["api_key"] = cfg.api_key
+
+    return ChatLiteLLM(**kwargs)
+
+
+def model_config_from_env() -> ModelConfig:
+    return ModelConfig(
+        model=os.getenv("OFFICEPLANE_AGENT_MODEL", "deepseek/deepseek-chat"),
+        temperature=float(os.getenv("OFFICEPLANE_AGENT_TEMPERATURE", "0.0")),
+        timeout=int(os.getenv("OFFICEPLANE_AGENT_TIMEOUT", "120")),
+    )

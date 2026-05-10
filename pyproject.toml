@@ -49,8 +49,10 @@ redis = [
 ]
 agent = [
   "langgraph>=0.2.0",
-  "deepagents>=0.1.0",
-  "langchain-openai>=0.1.0",
+  "deepagents==0.5.8",
+  "langchain-openai>=0.2.0",
+  "litellm==1.83.7",
+  "langchain-litellm==0.6.5",
   "cairosvg>=2.7.0",
   "svglib>=0.1.1",
   "reportlab>=4.0.0",

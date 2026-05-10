@@ -140,17 +140,14 @@ class ContentAgentRunner:
         model: str,
         user_message: str,
     ) -> None:
-        """Fallback: use OpenAI directly to generate a pptxgenjs script, then run it."""
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI()
+        """Fallback: call the LLM through LiteLLM to produce a pptxgenjs script."""
+        import litellm
 
         await sse_manager.push_event(
             job_id, "delta", {"text": "Planning presentation structure..."}
         )
 
-        # Ask the LLM to generate a Node.js script that creates the presentation
-        response = await client.chat.completions.create(
+        response = await litellm.acompletion(
             model=model,
             temperature=self.config.temperature,
             max_tokens=self.config.max_tokens,

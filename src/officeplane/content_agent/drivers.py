@@ -24,7 +24,12 @@ class AgentEvent:
 
 
 class DeepAgentsSDKDriver:
-    """Invoke deepagents via the Python SDK (current approach)."""
+    """Invoke deepagents via the Python SDK (current approach).
+
+    The model string is provider-prefixed (LiteLLM convention, e.g.
+    ``deepseek/deepseek-chat``). We build a ``ChatLiteLLM`` instance and pass
+    it to deepagents so the same factory handles every provider.
+    """
 
     async def astream(
         self, workspace: Path, model: str, message: str, system_prompt: str
@@ -32,8 +37,13 @@ class DeepAgentsSDKDriver:
         from deepagents import create_deep_agent
         from deepagents.backends import LocalShellBackend
 
+        from officeplane.content_agent.model import ModelConfig, build_chat_model
+
+        chat_model = build_chat_model(ModelConfig(model=model))
         backend = LocalShellBackend(root_dir=str(workspace))
-        agent = create_deep_agent(model=model, system_prompt=system_prompt, backend=backend)
+        agent = create_deep_agent(
+            model=chat_model, system_prompt=system_prompt, backend=backend
+        )
 
         async for raw in agent.astream(message):
             event = _normalize_sdk_event(raw)

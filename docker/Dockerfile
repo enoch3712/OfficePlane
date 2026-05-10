@@ -55,7 +55,9 @@ RUN pip install --no-cache-dir \
 # Content agent deps
 RUN pip install --no-cache-dir \
   matplotlib cairosvg svglib reportlab pandas openpyxl \
-  jinja2 playwright python-pptx deepagents langchain-openai \
+  jinja2 playwright python-pptx \
+  "deepagents==0.5.8" "langchain-openai>=0.2.0" \
+  "litellm==1.83.7" "langchain-litellm==0.6.5" \
   && playwright install chromium
 
 WORKDIR /app

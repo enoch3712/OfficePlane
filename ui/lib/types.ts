@@ -257,3 +257,13 @@ export interface Metrics {
   }
 }
 
+export interface OrchestrationSummary {
+  strategy: string
+  initial_mode: string
+  final_mode: string
+  worker_attempts: number
+  worker_confidence?: number | null
+  takeover_reason?: string | null
+  signals?: Record<string, unknown>
+}
+

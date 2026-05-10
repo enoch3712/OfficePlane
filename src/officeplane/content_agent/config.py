@@ -8,11 +8,20 @@ from dataclasses import dataclass, field
 class ContentAgentConfig:
     """Configuration for content generation."""
 
-    # LLM settings
+    # LLM settings.
+    # Provider-prefixed LiteLLM model string (e.g. ``deepseek/deepseek-chat``,
+    # ``openai/gpt-4o``, ``gemini/gemini-2.5-pro``).
     model: str = field(
-        default_factory=lambda: os.getenv("CONTENT_AGENT_MODEL", "gpt-4o")
+        default_factory=lambda: os.getenv(
+            "OFFICEPLANE_AGENT_MODEL",
+            os.getenv("CONTENT_AGENT_MODEL", "deepseek/deepseek-chat"),
+        )
     )
-    temperature: float = 0.7
+    temperature: float = field(
+        default_factory=lambda: float(
+            os.getenv("OFFICEPLANE_AGENT_TEMPERATURE", "0.7")
+        )
+    )
     max_tokens: int = 16384
 
     # Workspace
