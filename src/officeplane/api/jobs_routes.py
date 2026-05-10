@@ -16,10 +16,16 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from officeplane.content_agent.skill_executor import (
+    SkillExecutor,
+    SkillNotFoundError,
+)
 from officeplane.content_agent.streaming import sse_manager
 from officeplane.management.task_queue import task_queue
 
 log = logging.getLogger(__name__)
+
+_executor = SkillExecutor()
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -47,15 +53,13 @@ class JobResponse(BaseModel):
 @router.post("", status_code=202, response_model=JobResponse)
 async def start_job(request: JobRequest):
     """Enqueue a skill execution job."""
-    from officeplane.skills import registry
-
     try:
-        skill = registry.get(request.skill)
-    except KeyError:
+        _executor.get_skill(request.skill)
+    except SkillNotFoundError:
         raise HTTPException(status_code=404, detail=f"Skill {request.skill!r} not found")
 
     params = {"prompt": request.prompt, **request.params}
-    driver = request.driver or skill.default_driver
+    driver = request.driver or "deepagents_sdk"
 
     task = await task_queue.enqueue_task(
         task_type="skill_run",
@@ -170,3 +174,38 @@ async def cancel_job(job_id: str):
     await task_queue.cancel_task(job_id)
     sse_manager.remove_stream(job_id)
     return {"job_id": job_id, "status": "cancelled"}
+
+
+class InvokeSkillRequest(BaseModel):
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    actor_id: Optional[str] = None
+    document_id: Optional[str] = None
+
+
+class InvokeSkillResponse(BaseModel):
+    skill: str
+    output: dict[str, Any]
+
+
+@router.post("/invoke/{skill_name}", response_model=InvokeSkillResponse)
+async def invoke_skill_sync(skill_name: str, request: InvokeSkillRequest):
+    """Synchronously invoke a SKILL.md skill via the new executor.
+
+    For read-only or fast skills (audit-query, document-search). Use the
+    queued ``POST /api/jobs`` endpoint for long-running content generation.
+    """
+    from officeplane.content_agent.skill_executor import SkillInputError
+
+    try:
+        output = await _executor.invoke(
+            skill_name,
+            request.inputs,
+            actor_id=request.actor_id,
+            document_id=request.document_id,
+        )
+    except SkillNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Skill {skill_name!r} not found")
+    except SkillInputError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return InvokeSkillResponse(skill=skill_name, output=output)
