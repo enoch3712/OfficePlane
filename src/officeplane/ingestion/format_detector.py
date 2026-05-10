@@ -82,25 +82,27 @@ def _detect_ooxml_format(data: bytes, filename: Optional[str] = None) -> Documen
         with zipfile.ZipFile(BytesIO(data), "r") as zf:
             names = set(zf.namelist())
 
-            # Check for content type markers
+            # Check directory structure first — more reliable than content-type strings
+            # because some files embed spreadsheets (xlsx Default extensions) inside
+            # a presentation, which would cause a false XLSX match on content types.
+            names_joined = " ".join(names)
+            if "word/" in names_joined:
+                return DocumentFormat.DOCX
+            if "ppt/" in names_joined:
+                return DocumentFormat.PPTX
+            if "xl/" in names_joined:
+                return DocumentFormat.XLSX
+
+            # Check for content type markers as fallback
             if "[Content_Types].xml" in names:
                 content_types = zf.read("[Content_Types].xml").decode("utf-8", errors="ignore")
 
-                if "wordprocessingml" in content_types or "word/" in " ".join(names):
+                if "wordprocessingml" in content_types:
                     return DocumentFormat.DOCX
-                if "spreadsheetml" in content_types or "xl/" in " ".join(names):
-                    return DocumentFormat.XLSX
-                if "presentationml" in content_types or "ppt/" in " ".join(names):
+                if "presentationml" in content_types:
                     return DocumentFormat.PPTX
-
-            # Fallback to directory structure
-            for name in names:
-                if name.startswith("word/"):
-                    return DocumentFormat.DOCX
-                if name.startswith("xl/"):
+                if "spreadsheetml" in content_types:
                     return DocumentFormat.XLSX
-                if name.startswith("ppt/"):
-                    return DocumentFormat.PPTX
 
     except zipfile.BadZipFile:
         pass

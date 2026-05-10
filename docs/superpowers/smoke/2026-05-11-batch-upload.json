@@ -1,0 +1,29 @@
+{
+  "collection_id": "e869636d-15be-4683-acea-7b4567bea02c",
+  "collection_name": "RE Sales Training",
+  "results": [
+    {
+      "filename": "RE_6001_-_BMC_2_-_PowerPoint_20221215.pptx",
+      "status": "ingested",
+      "document_id": "6bf2379a-4c6f-4188-be3f-3ad312ce7eef",
+      "title": "Document",
+      "chapters": 4,
+      "sections": 29,
+      "pages": 31,
+      "source_format": "pptx",
+      "notes": "Gemini batch 3/5 hit copyright filter (finish_reason=4) but recovered; 4 chapters extracted."
+    },
+    {
+      "filename": "NV_Course3__Commercial_Sales_Course3_PPT_Outline_RevisionsMade_03.27.26.docx",
+      "status": "stalled",
+      "error": "Gemini vision analysis hung indefinitely after image compression (49 pages, 7 batches). No timeout in run_in_executor call. Killed after 15+ min. Document not stored.",
+      "notes": "LibreOffice conversion worked (226993 bytes PDF, 49 pages). Gemini never emitted batch logs."
+    },
+    {
+      "filename": "Educating Homebuyers.pptx",
+      "status": "stalled",
+      "error": "Gemini analysis hung after 96-page image compression. Also: initial upload attempted failed with detected:xlsx due to embedded spreadsheet in Content_Types.xml - fixed in format_detector.py (ppt/ directory check now takes precedence). Second attempt after fix correctly detected PPTX but Gemini still stalled after 15+ min.",
+      "notes": "Format detector bug fixed: reordered checks to use directory structure before content-type string matching."
+    }
+  ]
+}
