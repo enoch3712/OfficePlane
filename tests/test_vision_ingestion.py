@@ -252,8 +252,9 @@ class TestIngestionConfig:
         assert config.auto_index is True
 
     def test_validate_valid_config(self):
-        """Test validation passes for valid config."""
+        """Test validation passes for valid config (vision mode)."""
         config = IngestionConfig(
+            mode="vision",
             vision_provider="mock",
             image_size_kb=100,
             pdf_dpi=150,
@@ -263,30 +264,30 @@ class TestIngestionConfig:
         config.validate()
 
     def test_validate_invalid_provider(self):
-        """Test validation fails for invalid provider."""
-        config = IngestionConfig()
+        """Test validation fails for invalid provider in vision mode."""
+        config = IngestionConfig(mode="vision")
         config.vision_provider = "invalid"
 
         with pytest.raises(ValueError, match="Invalid vision_provider"):
             config.validate()
 
     def test_validate_missing_api_key(self):
-        """Test validation fails when Gemini API key missing."""
-        config = IngestionConfig(vision_provider="gemini", google_api_key="")
+        """Test validation fails when Gemini API key missing in vision mode."""
+        config = IngestionConfig(mode="vision", vision_provider="gemini", google_api_key="")
 
         with pytest.raises(ValueError, match="GOOGLE_API_KEY is required"):
             config.validate()
 
     def test_validate_invalid_image_size(self):
         """Test validation fails for invalid image size."""
-        config = IngestionConfig(vision_provider="mock", image_size_kb=5)
+        config = IngestionConfig(mode="vision", vision_provider="mock", image_size_kb=5)
 
         with pytest.raises(ValueError, match="image_size_kb must be between"):
             config.validate()
 
     def test_validate_invalid_dpi(self):
         """Test validation fails for invalid DPI."""
-        config = IngestionConfig(vision_provider="mock", pdf_dpi=50)
+        config = IngestionConfig(mode="vision", vision_provider="mock", pdf_dpi=50)
 
         with pytest.raises(ValueError, match="pdf_dpi must be between"):
             config.validate()
@@ -304,7 +305,7 @@ class TestVisionIngestionService:
     async def test_init_with_mock_adapter(self):
         """Test service initialization with mock adapter."""
         adapter = MockVisionAdapter()
-        config = IngestionConfig(vision_provider="mock")
+        config = IngestionConfig(mode="vision", vision_provider="mock")
 
         service = VisionIngestionService(
             vision_adapter=adapter,
@@ -322,7 +323,7 @@ class TestVisionIngestionService:
     async def test_ingest_unknown_format(self):
         """Test ingestion fails for unknown format."""
         adapter = MockVisionAdapter()
-        config = IngestionConfig(vision_provider="mock")
+        config = IngestionConfig(mode="vision", vision_provider="mock")
 
         service = VisionIngestionService(
             vision_adapter=adapter,
@@ -339,9 +340,9 @@ class TestVisionIngestionService:
 
     @pytest.mark.asyncio
     async def test_ingest_needs_driver_for_docx(self):
-        """Test ingestion of DOCX requires driver."""
+        """Test ingestion of DOCX requires driver (vision mode)."""
         adapter = MockVisionAdapter()
-        config = IngestionConfig(vision_provider="mock")
+        config = IngestionConfig(mode="vision", vision_provider="mock")
 
         service = VisionIngestionService(
             driver=None,  # No driver
@@ -387,7 +388,7 @@ class TestVisionIngestionService:
             progress_stages.append((stage, current, total))
 
         adapter = MockVisionAdapter()
-        config = IngestionConfig(vision_provider="mock")
+        config = IngestionConfig(mode="vision", vision_provider="mock")
 
         service = VisionIngestionService(
             vision_adapter=adapter,
@@ -480,7 +481,7 @@ class TestIngestionPipeline:
             }
 
         adapter = MockVisionAdapter(response_generator=response_generator)
-        config = IngestionConfig(vision_provider="mock", pdf_dpi=72)
+        config = IngestionConfig(mode="vision", vision_provider="mock", pdf_dpi=72)
 
         service = VisionIngestionService(
             vision_adapter=adapter,
@@ -572,7 +573,7 @@ class TestRealPDFFixture:
             }
 
         adapter = MockVisionAdapter(response_generator=response_generator)
-        config = IngestionConfig(vision_provider="mock", pdf_dpi=100, batch_size=16)
+        config = IngestionConfig(mode="vision", vision_provider="mock", pdf_dpi=100, batch_size=16)
 
         service = VisionIngestionService(
             vision_adapter=adapter,
@@ -643,6 +644,7 @@ class TestGeminiIntegration:
         )
 
         config = IngestionConfig(
+            mode="vision",
             vision_provider="gemini",
             vision_model="gemini-3-flash-preview",
             pdf_dpi=100,

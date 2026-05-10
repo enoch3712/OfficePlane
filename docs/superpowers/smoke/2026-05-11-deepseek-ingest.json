@@ -1,0 +1,23 @@
+{
+    "collection_id": "e869636d-15be-4683-acea-7b4567bea02c",
+    "results": [
+        {
+            "filename": "RE_6001_-_BMC_2_-_PowerPoint_20221215.pptx",
+            "status": "ingested",
+            "document_id": "b6cf77c3-b336-40b8-ac28-5916e2c34515",
+            "title": "Broker Management Clinic - 2"
+        },
+        {
+            "filename": "Educating Homebuyers.pptx",
+            "status": "ingested",
+            "document_id": "c2fb5cec-1f29-4b29-94c3-5871e5ada14a",
+            "title": "Document"
+        },
+        {
+            "filename": "NV_Course3__Commercial_Sales_Course3_PPT_Outline_RevisionsMade_03.27.26.docx",
+            "status": "ingested",
+            "document_id": "ce568cba-eb0b-4df1-8c56-80674e0f1168",
+            "title": "Nevada Commercial Sales for Licensees: Valuation Basics and Due Diligence"
+        }
+    ]
+}

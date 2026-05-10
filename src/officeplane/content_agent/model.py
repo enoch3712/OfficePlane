@@ -44,6 +44,8 @@ def build_chat_model(cfg: ModelConfig) -> ChatLiteLLM:
 
 
 DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+DEFAULT_MODEL_FLASH = "deepseek/deepseek-v4-flash"
+DEFAULT_MODEL_PRO = "deepseek/deepseek-v4-pro"
 
 
 def model_config_from_env() -> ModelConfig:
@@ -51,4 +53,25 @@ def model_config_from_env() -> ModelConfig:
         model=os.getenv("OFFICEPLANE_AGENT_MODEL", DEFAULT_MODEL),
         temperature=float(os.getenv("OFFICEPLANE_AGENT_TEMPERATURE", "0.0")),
         timeout=int(os.getenv("OFFICEPLANE_AGENT_TIMEOUT", "120")),
+    )
+
+
+def model_for_tier(tier: str = "flash") -> ModelConfig:
+    """Return a ModelConfig for the given tier ('flash' or 'pro').
+
+    Falls back to 'flash' for any unrecognised tier string.
+    Model strings are overridable via env vars:
+        OFFICEPLANE_AGENT_MODEL_FLASH  (default: deepseek/deepseek-v4-flash)
+        OFFICEPLANE_AGENT_MODEL_PRO    (default: deepseek/deepseek-v4-pro)
+    """
+    temperature = float(os.getenv("OFFICEPLANE_AGENT_TEMPERATURE", "0.0"))
+    if tier == "pro":
+        return ModelConfig(
+            model=os.getenv("OFFICEPLANE_AGENT_MODEL_PRO", DEFAULT_MODEL_PRO),
+            temperature=temperature,
+        )
+    # Default: flash (also handles any unknown tier)
+    return ModelConfig(
+        model=os.getenv("OFFICEPLANE_AGENT_MODEL_FLASH", DEFAULT_MODEL_FLASH),
+        temperature=temperature,
     )

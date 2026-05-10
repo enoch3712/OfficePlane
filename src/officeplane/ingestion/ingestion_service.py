@@ -1,14 +1,20 @@
-"""Vision-based document ingestion service.
+"""Document ingestion service.
+
+Supports two modes:
+- text (default): extract text directly (PDF/DOCX/PPTX) then structure via DeepSeek.
+- vision: render pages to images and analyze with a vision model (Gemini/mock).
 
 Orchestrates the full pipeline from document upload to structured storage:
 1. Format detection (PDF/DOCX/etc.)
-2. Conversion to PDF if needed (via LibreOffice driver)
-3. PDF to page images (via PyMuPDF)
-4. Image compression (via Pillow)
-5. Vision model analysis (batched)
-6. Structure parsing to document models
-7. Storage in PostgreSQL
-8. Optional RAG indexing
+2. [text mode] Text extraction per page/slide
+3. [text mode] Structure analysis via DeepSeek LLM
+4. [vision mode] Conversion to PDF if needed (via LibreOffice driver)
+5. [vision mode] PDF to page images (via PyMuPDF)
+6. [vision mode] Image compression (via Pillow)
+7. [vision mode] Vision model analysis (batched)
+8. Structure parsing to document models
+9. Storage in PostgreSQL
+10. Optional RAG indexing
 """
 
 import asyncio
@@ -189,7 +195,13 @@ class VisionIngestionService:
                     error=f"Unknown document format for {filename}",
                 )
 
-            # Step 2: Convert to PDF if needed
+            # Branch: text mode (default) vs vision mode
+            if self._config.mode == "text":
+                return await self._ingest_text(
+                    data, filename, doc_format, document_id, progress_callback
+                )
+
+            # Step 2: Convert to PDF if needed (vision path)
             pdf_bytes = data
             if needs_conversion(data, filename):
                 self._report_progress(progress_callback, "converting_to_pdf", 0, 1)
@@ -281,6 +293,99 @@ class VisionIngestionService:
                 success=False,
                 error=str(e),
             )
+
+    async def _ingest_text(
+        self,
+        data: bytes,
+        filename: str,
+        doc_format: DocumentFormat,
+        document_id: UUID,
+        progress_callback: Optional[ProgressCallback],
+    ) -> "IngestionResult":
+        """Text-based ingestion: extract text per page then structure via DeepSeek."""
+        from officeplane.ingestion.structure_adapters import DeepSeekStructureAdapter
+        from officeplane.ingestion.text_extractors import extract_text
+
+        # Legacy binaries (DOC, PPT) can't be parsed directly — convert to PDF first.
+        working_data = data
+        working_format = doc_format
+        if doc_format in (DocumentFormat.DOC, DocumentFormat.PPT):
+            if self._driver is None:
+                return IngestionResult(
+                    success=False,
+                    error="No driver available for legacy format conversion",
+                )
+            self._report_progress(progress_callback, "converting_to_pdf", 0, 1)
+            pdf_bytes = await self._convert_to_pdf(data, filename)
+            if pdf_bytes is None:
+                return IngestionResult(
+                    success=False,
+                    error="Failed to convert legacy format to PDF",
+                )
+            working_data = pdf_bytes
+            working_format = DocumentFormat.PDF
+
+        self._report_progress(progress_callback, "extracting_text", 0, 1)
+        try:
+            pages = extract_text(working_data, working_format)
+        except Exception as e:
+            log.error(f"Text extraction failed for {filename}: {e}")
+            return IngestionResult(success=False, error=f"Text extraction failed: {e}")
+
+        if not pages:
+            return IngestionResult(success=False, error="No text extracted from document")
+
+        log.info(f"Extracted text from {len(pages)} pages of {filename}")
+
+        self._report_progress(progress_callback, "structuring", 0, len(pages))
+        adapter = DeepSeekStructureAdapter(
+            model=self._config.ingestion_model,
+            max_pages_per_call=max(self._config.batch_size, 1) * 8,  # larger chunks for text
+        )
+        try:
+            structure_data = await adapter.analyze(pages, filename=filename)
+        except Exception as e:
+            log.error(f"DeepSeek structuring failed for {filename}: {e}")
+            return IngestionResult(success=False, error=f"Structuring failed: {e}")
+
+        page_contents = {p["page_number"]: p["text"] for p in pages}
+
+        self._report_progress(progress_callback, "parsing_structure", 0, 1)
+        parser = StructureParser(document_id=document_id)
+        parse_result = parser.parse_full_response(structure_data, page_contents)
+
+        if not parse_result.success or parse_result.document is None:
+            return IngestionResult(
+                success=False,
+                error=f"Failed to parse document structure: {parse_result.errors}",
+            )
+
+        document = parse_result.document
+
+        if self._doc_store:
+            self._report_progress(progress_callback, "storing_document", 0, 1)
+            stored = await self._store_document(document)
+            if stored is not None:
+                document = stored
+            log.info(
+                f"Stored document {document.id} with {document.chapter_count} chapters"
+            )
+
+        self._report_progress(progress_callback, "complete", 1, 1)
+        return IngestionResult(
+            success=True,
+            document_id=document.id,
+            document=document,
+            chapter_count=document.chapter_count,
+            section_count=document.section_count,
+            page_count=document.page_count,
+            metadata={
+                "original_format": doc_format.value,
+                "filename": filename,
+                "ingestion_model": self._config.ingestion_model,
+                "mode": "text",
+            },
+        )
 
     async def _convert_to_pdf(self, data: bytes, filename: str) -> Optional[bytes]:
         """Convert document to PDF using the office driver."""

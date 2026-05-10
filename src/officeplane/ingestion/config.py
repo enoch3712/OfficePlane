@@ -1,4 +1,4 @@
-"""Configuration for vision-based document ingestion."""
+"""Configuration for document ingestion."""
 
 import os
 from dataclasses import dataclass, field
@@ -7,13 +7,15 @@ from typing import Literal
 
 @dataclass
 class IngestionConfig:
-    """Configuration for the vision-based ingestion service.
+    """Configuration for the document ingestion service.
 
     All settings can be overridden via environment variables with the
     OFFICEPLANE_INGESTION_ prefix.
 
     Attributes:
-        vision_provider: Vision model provider ("gemini" or "mock").
+        mode: Ingestion mode — "text" (default, DeepSeek text path) or "vision".
+        ingestion_model: LiteLLM model string used in text mode.
+        vision_provider: Vision model provider ("gemini" or "mock"). Used only in vision mode.
         vision_model: Model name for the vision provider.
         google_api_key: API key for Gemini (from GOOGLE_API_KEY env var).
         image_size_kb: Target size for compressed images in KB.
@@ -23,6 +25,12 @@ class IngestionConfig:
         max_images_per_call: Maximum images per vision API call (provider dependent).
     """
 
+    mode: str = field(default_factory=lambda: _env_str(
+        "OFFICEPLANE_INGESTION_MODE", "text"
+    ))
+    ingestion_model: str = field(default_factory=lambda: _env_str(
+        "OFFICEPLANE_INGESTION_MODEL", "deepseek/deepseek-v4-flash"
+    ))
     vision_provider: Literal["gemini", "mock"] = field(default_factory=lambda: _env_str(
         "OFFICEPLANE_INGESTION_VISION_PROVIDER", "gemini"
     ))
@@ -54,11 +62,16 @@ class IngestionConfig:
         Raises:
             ValueError: If any configuration value is invalid.
         """
-        if self.vision_provider not in ("gemini", "mock"):
-            raise ValueError(f"Invalid vision_provider: {self.vision_provider}")
+        if self.mode not in ("text", "vision"):
+            raise ValueError(f"Invalid mode: {self.mode}. Must be 'text' or 'vision'")
 
-        if self.vision_provider == "gemini" and not self.google_api_key:
-            raise ValueError("GOOGLE_API_KEY is required when using gemini provider")
+        # Vision-specific validations only apply when mode == "vision"
+        if self.mode == "vision":
+            if self.vision_provider not in ("gemini", "mock"):
+                raise ValueError(f"Invalid vision_provider: {self.vision_provider}")
+
+            if self.vision_provider == "gemini" and not self.google_api_key:
+                raise ValueError("GOOGLE_API_KEY is required when using gemini provider")
 
         if self.image_size_kb < 10 or self.image_size_kb > 500:
             raise ValueError(f"image_size_kb must be between 10 and 500, got {self.image_size_kb}")

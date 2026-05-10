@@ -92,20 +92,34 @@ class SkillExecutor:
         skill_name: str,
         inputs: dict[str, Any],
         *,
+        tier: str = "flash",
         actor_id: Optional[str] = None,
         document_id: Optional[str] = None,
     ) -> dict[str, Any]:
-        """Execute a skill end-to-end. Returns the parsed JSON output."""
+        """Execute a skill end-to-end. Returns the parsed JSON output.
+
+        Args:
+            skill_name: Name of the skill to invoke.
+            inputs: Input values for the skill.
+            tier: Model tier to use — "flash" (default, cheap) or "pro" (capable).
+            actor_id: Optional actor identifier for audit logging.
+            document_id: Optional document ID for audit logging.
+        """
+        from officeplane.content_agent.model import model_for_tier
+
         skill = self.get_skill(skill_name)
         self.validate_inputs(skill_name, inputs)
+
+        # Resolve model: tier-based selection overrides instance default
+        model_cfg = model_for_tier(tier)
 
         system_prompt = self._build_system_prompt(skill)
         user_message = self._build_user_message(skill, inputs)
 
-        log.info("invoking skill %s", skill_name)
+        log.info("invoking skill %s with tier=%s model=%s", skill_name, tier, model_cfg.model)
         response = await litellm.acompletion(
-            model=self._model.model,
-            temperature=self._model.temperature,
+            model=model_cfg.model,
+            temperature=model_cfg.temperature,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
