@@ -34,6 +34,11 @@ model Document {
   sourceFile   Bytes?   @map("source_file")
   sourceFormat String?  @map("source_format") // 'docx', 'pdf', etc.
   fileName     String?  @map("file_name")
+  summary       String?  @db.Text
+  topics        String[] @default([])
+  keyEntities   Json     @default("{}") @map("key_entities")
+  summaryModel  String?  @map("summary_model")
+  summarizedAt  DateTime? @map("summarized_at") @db.Timestamptz
 
   // Relations
   chapters  Chapter[]
@@ -69,6 +74,7 @@ model Section {
   chapterId  String   @map("chapter_id") @db.Uuid
   title      String
   orderIndex Int      @map("order_index")
+  summary    String?  @db.Text
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
