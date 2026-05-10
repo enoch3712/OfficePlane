@@ -43,9 +43,12 @@ def build_chat_model(cfg: ModelConfig) -> ChatLiteLLM:
     return ChatLiteLLM(**kwargs)
 
 
+DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+
+
 def model_config_from_env() -> ModelConfig:
     return ModelConfig(
-        model=os.getenv("OFFICEPLANE_AGENT_MODEL", "deepseek/deepseek-chat"),
+        model=os.getenv("OFFICEPLANE_AGENT_MODEL", DEFAULT_MODEL),
         temperature=float(os.getenv("OFFICEPLANE_AGENT_TEMPERATURE", "0.0")),
         timeout=int(os.getenv("OFFICEPLANE_AGENT_TIMEOUT", "120")),
     )

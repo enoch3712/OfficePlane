@@ -14,7 +14,7 @@ class ContentAgentConfig:
     model: str = field(
         default_factory=lambda: os.getenv(
             "OFFICEPLANE_AGENT_MODEL",
-            os.getenv("CONTENT_AGENT_MODEL", "deepseek/deepseek-chat"),
+            os.getenv("CONTENT_AGENT_MODEL", "deepseek/deepseek-v4-flash"),
         )
     )
     temperature: float = field(

@@ -14,7 +14,7 @@ from officeplane.content_agent.model import (
 
 
 def test_build_model_deepseek_string() -> None:
-    cfg = ModelConfig(model="deepseek/deepseek-chat", temperature=0.0)
+    cfg = ModelConfig(model="deepseek/deepseek-v4-flash", temperature=0.0)
     model = build_chat_model(cfg)
     assert model is not None
     assert getattr(model, "model", "").startswith("deepseek/")
@@ -36,7 +36,7 @@ def test_model_config_from_env_defaults_to_deepseek(monkeypatch: pytest.MonkeyPa
     monkeypatch.delenv("OFFICEPLANE_AGENT_MODEL", raising=False)
     monkeypatch.delenv("OFFICEPLANE_AGENT_TEMPERATURE", raising=False)
     cfg = model_config_from_env()
-    assert cfg.model == "deepseek/deepseek-chat"
+    assert cfg.model == "deepseek/deepseek-v4-flash"
     assert cfg.temperature == 0.0
 
 
@@ -49,6 +49,6 @@ def test_model_config_from_env_reads_overrides(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_build_model_passes_max_tokens() -> None:
-    cfg = ModelConfig(model="deepseek/deepseek-chat", max_tokens=512)
+    cfg = ModelConfig(model="deepseek/deepseek-v4-flash", max_tokens=512)
     model = build_chat_model(cfg)
     assert getattr(model, "max_tokens", None) == 512

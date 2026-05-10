@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     python3-venv \
+    python3-dev \
     python3-uno \
+    python3-cairo \
     ca-certificates \
     fontconfig \
     fonts-dejavu \
@@ -53,11 +55,11 @@ RUN pip install --no-cache-dir \
   unoserver "redis[hiredis]>=5.0.0"
 
 # Content agent deps
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --default-timeout=600 --retries=5 \
   matplotlib cairosvg svglib reportlab pandas openpyxl \
   jinja2 playwright python-pptx \
   "deepagents==0.5.8" "langchain-openai>=0.2.0" \
-  "litellm==1.83.7" "langchain-litellm==0.6.5" \
+  "litellm>=1.83.7,<2.0.0" "langchain-litellm" \
   && playwright install chromium
 
 WORKDIR /app
