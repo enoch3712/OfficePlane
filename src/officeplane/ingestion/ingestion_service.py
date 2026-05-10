@@ -543,13 +543,45 @@ class VisionIngestionService:
     def _merge_batch_results(
         self, batch_results: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Merge batched page results into a document structure."""
-        # Collect all pages with their structure hints
-        all_pages: List[Dict[str, Any]] = []
+        """Merge batched page results into a document structure.
+
+        Captures document- and chapter-level metadata that any single batch
+        emits (title, author, document_summary, topics, key_entities, plus
+        per-page chapter_summary / section_summary) so the merged dict the
+        parser sees mirrors the shape ``parse_full_response`` expects.
+        """
+        # Document-level metadata: take the first non-empty value across batches.
+        title: Optional[str] = None
+        author: Optional[str] = None
+        document_summary: Optional[str] = None
+        topics: List[str] = []
+        seen_topics: set[str] = set()
+        key_entities: Dict[str, List[Any]] = {}
 
         for batch in batch_results:
-            pages = batch.get("pages", [])
-            all_pages.extend(pages)
+            if title is None and batch.get("title"):
+                title = batch["title"]
+            if author is None and batch.get("author"):
+                author = batch["author"]
+            if document_summary is None and batch.get("document_summary"):
+                document_summary = batch["document_summary"]
+            for tag in batch.get("topics", []) or []:
+                if isinstance(tag, str) and tag and tag not in seen_topics:
+                    seen_topics.add(tag)
+                    topics.append(tag)
+            for ent_key, values in (batch.get("key_entities", {}) or {}).items():
+                if not isinstance(values, list):
+                    continue
+                bucket = key_entities.setdefault(ent_key, [])
+                for v in values:
+                    if v not in bucket:
+                        bucket.append(v)
+
+        # Collect all pages with their structure hints
+        all_pages: List[Dict[str, Any]] = []
+        for batch in batch_results:
+            for page in batch.get("pages", []):
+                all_pages.append(page)
 
         # Sort by page number
         all_pages.sort(key=lambda p: p.get("page_number", 0))
@@ -564,6 +596,8 @@ class VisionIngestionService:
             content = page.get("content", "")
             chapter_title = page.get("chapter_title")
             section_title = page.get("section_title")
+            chapter_summary = page.get("chapter_summary") or page.get("chapter_overview")
+            section_summary = page.get("section_summary") or page.get("section_overview")
 
             # Check for new chapter
             if chapter_title:
@@ -574,7 +608,7 @@ class VisionIngestionService:
 
                 current_chapter = {
                     "title": chapter_title,
-                    "summary": None,
+                    "summary": chapter_summary,
                     "sections": [],
                 }
                 current_section = None
@@ -586,6 +620,7 @@ class VisionIngestionService:
 
                 current_section = {
                     "title": section_title,
+                    "summary": section_summary,
                     "pages": [],
                 }
 
@@ -600,8 +635,15 @@ class VisionIngestionService:
             if not current_section:
                 current_section = {
                     "title": "Content",
+                    "summary": None,
                     "pages": [],
                 }
+
+            # Promote a late-arriving chapter summary onto the current chapter
+            if chapter_summary and not current_chapter.get("summary"):
+                current_chapter["summary"] = chapter_summary
+            if section_summary and not current_section.get("summary"):
+                current_section["summary"] = section_summary
 
             # Add page
             current_section["pages"].append({
@@ -615,9 +657,15 @@ class VisionIngestionService:
         if current_chapter:
             chapters.append(current_chapter)
 
+        # Document title fallback: prefer top-level title; else first chapter title; else "Document"
+        if not title and chapters:
+            title = chapters[0].get("title")
         return {
-            "title": "Document",
-            "author": None,
+            "title": title or "Document",
+            "author": author,
+            "document_summary": document_summary,
+            "topics": topics,
+            "key_entities": key_entities,
             "chapters": chapters,
         }
 
