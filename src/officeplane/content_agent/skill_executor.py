@@ -110,6 +110,18 @@ class SkillExecutor:
         skill = self.get_skill(skill_name)
         self.validate_inputs(skill_name, inputs)
 
+        # Phase 7.5: handler.py dispatch — if the skill directory contains a
+        # handler.py with an `execute` coroutine, call it directly instead of
+        # falling through to the generic LiteLLM path.
+        handler = self._load_handler(skill)
+        if handler is not None:
+            log.info("dispatching %s via handler.py", skill_name)
+            output = await handler(
+                inputs=inputs, actor_id=actor_id, document_id=document_id,
+            )
+            await self._emit_audit(skill, output, actor_id=actor_id, document_id=document_id)
+            return output
+
         # Resolve model: tier-based selection overrides instance default
         model_cfg = model_for_tier(tier)
 
@@ -137,6 +149,28 @@ class SkillExecutor:
         return output
 
     # ── internals ───────────────────────────────────────────────────────────
+
+    def _load_handler(self, skill: Skill):
+        """Return the `execute` coroutine from skills/<name>/handler.py if present.
+
+        The module is imported fresh each call so edits during development are
+        picked up without restarting the server.
+        """
+        if skill.path is None:
+            return None
+        handler_path = skill.path / "handler.py"
+        if not handler_path.exists():
+            return None
+        import importlib.util
+
+        safe_name = skill.name.replace("-", "_")
+        spec = importlib.util.spec_from_file_location(
+            f"officeplane.skills.handlers.{safe_name}",
+            handler_path,
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return getattr(module, "execute", None)
 
     def _build_system_prompt(self, skill: Skill) -> str:
         outputs_schema = "\n".join(
