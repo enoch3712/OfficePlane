@@ -119,8 +119,12 @@ class ContentAgentRunner:
         """Run the agent via the selected driver with streaming events."""
         from officeplane.content_agent.drivers import get_driver
 
-        skills = self._load_skills()
-        system_prompt = SYSTEM_PROMPT + "\n\n" + skills
+        from officeplane.content_agent.skill_loader import discover_skills
+        from officeplane.content_agent.prompts import build_system_prompt
+
+        skills_root = Path(__file__).parent / "skills"
+        discovered = discover_skills(skills_root)
+        system_prompt = build_system_prompt(skills=discovered, user_context="")
 
         try:
             agent_driver = get_driver(driver)
