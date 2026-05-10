@@ -59,6 +59,7 @@ class SectionModel(BaseModel):
     chapter_id: UUID
     title: str
     order_index: int
+    summary: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
@@ -104,6 +105,9 @@ class DocumentModel(BaseModel):
     title: str
     author: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    summary: Optional[str] = None
+    topics: List[str] = Field(default_factory=list)
+    key_entities: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 

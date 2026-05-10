@@ -130,11 +130,14 @@ class StructureParser:
                     pages.append(page)
                     total_pages += 1
 
+                section_summary = section_data.get("summary")
+
                 section = SectionModel(
                     id=section_id,
                     chapter_id=chapter_id,
                     title=section_title,
                     order_index=section_idx,
+                    summary=section_summary,
                     pages=pages,
                 )
                 sections.append(section)
@@ -154,6 +157,9 @@ class StructureParser:
             id=self._document_id,
             title=title,
             author=author,
+            summary=json_data.get("document_summary"),
+            topics=list(json_data.get("topics", []) or []),
+            key_entities=dict(json_data.get("key_entities", {}) or {}),
             chapters=chapters,
         )
 

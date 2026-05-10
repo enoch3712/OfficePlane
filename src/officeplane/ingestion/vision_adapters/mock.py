@@ -15,6 +15,9 @@ class MockVisionAdapter:
         self,
         response_generator: Optional[Callable[[List[bytes], str], Dict[str, Any]]] = None,
         default_chapters: int = 1,
+        canned_summary: Optional[str] = None,
+        canned_topics: Optional[List[str]] = None,
+        canned_key_entities: Optional[Dict[str, Any]] = None,
     ):
         """Initialize the mock adapter.
 
@@ -22,9 +25,15 @@ class MockVisionAdapter:
             response_generator: Optional function to generate custom responses.
                 Takes (images, prompt) and returns a dict for json_data.
             default_chapters: Number of chapters to generate in default response.
+            canned_summary: Optional document summary to include in responses.
+            canned_topics: Optional list of topic tags to include in responses.
+            canned_key_entities: Optional key entities dict to include in responses.
         """
         self._response_generator = response_generator
         self._default_chapters = default_chapters
+        self._canned_summary = canned_summary
+        self._canned_topics = canned_topics
+        self._canned_key_entities = canned_key_entities
         self._call_count = 0
         self._call_history: List[Dict[str, Any]] = []
 
@@ -106,17 +115,25 @@ class MockVisionAdapter:
                 "sections": [
                     {
                         "title": f"Section {i + 1}.1",
+                        "summary": f"section summary {i * 1 + 1}",
                         "pages": list(range(start_page, end_page + 1)),
                     }
                 ],
             }
             chapters.append(chapter)
 
-        return {
+        response: Dict[str, Any] = {
             "title": "Mock Document",
             "author": "Mock Author",
             "chapters": chapters,
         }
+        if self._canned_summary is not None:
+            response["document_summary"] = self._canned_summary
+        if self._canned_topics is not None:
+            response["topics"] = self._canned_topics
+        if self._canned_key_entities is not None:
+            response["key_entities"] = self._canned_key_entities
+        return response
 
     @property
     def supports_batch(self) -> bool:
@@ -152,12 +169,18 @@ class MockVisionAdapter:
 def create_mock_response(
     title: str = "Test Document",
     chapters: Optional[List[Dict[str, Any]]] = None,
+    canned_summary: Optional[str] = None,
+    canned_topics: Optional[List[str]] = None,
+    canned_key_entities: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Create a mock document structure response.
 
     Args:
         title: Document title.
         chapters: List of chapter dicts.
+        canned_summary: Optional document-level summary string.
+        canned_topics: Optional list of topic tags.
+        canned_key_entities: Optional key entities dict.
 
     Returns:
         Document structure dict.
@@ -170,6 +193,7 @@ def create_mock_response(
                 "sections": [
                     {
                         "title": "Overview",
+                        "summary": "section summary 1",
                         "pages": [1, 2],
                     }
                 ],
@@ -180,14 +204,22 @@ def create_mock_response(
                 "sections": [
                     {
                         "title": "Details",
+                        "summary": "section summary 2",
                         "pages": [3, 4, 5],
                     }
                 ],
             },
         ]
 
-    return {
+    response: Dict[str, Any] = {
         "title": title,
         "author": "Test Author",
         "chapters": chapters,
     }
+    if canned_summary is not None:
+        response["document_summary"] = canned_summary
+    if canned_topics is not None:
+        response["topics"] = canned_topics
+    if canned_key_entities is not None:
+        response["key_entities"] = canned_key_entities
+    return response

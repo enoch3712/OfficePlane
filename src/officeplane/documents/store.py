@@ -83,6 +83,9 @@ class DocumentStore:
         title: str,
         author: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        summary: Optional[str] = None,
+        topics: Optional[list] = None,
+        key_entities: Optional[dict] = None,
     ) -> DocumentModel:
         """Create a new document."""
         import json
@@ -91,13 +94,16 @@ class DocumentStore:
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                INSERT INTO documents (title, author, metadata, updated_at)
-                VALUES ($1, $2, $3, NOW())
-                RETURNING id, title, author, metadata, created_at, updated_at
+                INSERT INTO documents (title, author, metadata, summary, topics, key_entities, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                RETURNING id, title, author, metadata, summary, topics, key_entities, created_at, updated_at
                 """,
                 title,
                 author,
                 json.dumps(metadata or {}),
+                summary,
+                topics or [],
+                json.dumps(key_entities or {}),
             )
 
         return DocumentModel(
@@ -105,6 +111,9 @@ class DocumentStore:
             title=row["title"],
             author=row["author"],
             metadata=self._parse_metadata(row["metadata"]),
+            summary=row["summary"],
+            topics=list(row["topics"]) if row["topics"] else [],
+            key_entities=self._parse_metadata(row["key_entities"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
@@ -130,6 +139,9 @@ class DocumentStore:
             title=row["title"],
             author=row["author"],
             metadata=self._parse_metadata(row["metadata"]),
+            summary=row["summary"],
+            topics=list(row["topics"]) if row["topics"] else [],
+            key_entities=self._parse_metadata(row["key_entities"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
@@ -380,6 +392,7 @@ class DocumentStore:
         chapter_id: UUID,
         title: str,
         order_index: Optional[int] = None,
+        summary: Optional[str] = None,
     ) -> SectionModel:
         """Create a new section."""
         pool = await self._get_pool()
@@ -393,13 +406,14 @@ class DocumentStore:
 
             row = await conn.fetchrow(
                 """
-                INSERT INTO sections (chapter_id, title, order_index, updated_at)
-                VALUES ($1, $2, $3, NOW())
+                INSERT INTO sections (chapter_id, title, order_index, summary, updated_at)
+                VALUES ($1, $2, $3, $4, NOW())
                 RETURNING *
                 """,
                 chapter_id,
                 title,
                 order_index,
+                summary,
             )
 
         return SectionModel(
@@ -407,6 +421,7 @@ class DocumentStore:
             chapter_id=row["chapter_id"],
             title=row["title"],
             order_index=row["order_index"],
+            summary=row["summary"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
@@ -432,6 +447,7 @@ class DocumentStore:
             chapter_id=row["chapter_id"],
             title=row["title"],
             order_index=row["order_index"],
+            summary=row["summary"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
@@ -461,6 +477,7 @@ class DocumentStore:
                 chapter_id=row["chapter_id"],
                 title=row["title"],
                 order_index=row["order_index"],
+                summary=row["summary"],
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
             )

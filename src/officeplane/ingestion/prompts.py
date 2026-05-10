@@ -147,3 +147,19 @@ def get_merge_prompt(batch_results: str) -> str:
         Formatted merge prompt.
     """
     return MERGE_PROMPT.format(batch_results=batch_results)
+
+
+SUMMARY_INSTRUCTION = """
+After extracting structure, also emit:
+- `document_summary`: a 3-5 sentence overview of the entire document.
+- `topics`: an array of 3-8 short topic tags (lowercase, hyphenated).
+- `key_entities`: an object with optional keys `people`, `orgs`, `places`, `dates`,
+  each an array of strings. Omit a key if no entities of that type are present.
+
+For each chapter, emit a `summary` field (1-3 sentences). For each section, emit a
+`summary` field (1-2 sentences). All summary text must be plain prose, no markdown.
+"""
+
+STRUCTURE_EXTRACTION_PROMPT = STRUCTURE_EXTRACTION_PROMPT + SUMMARY_INSTRUCTION
+BATCH_STRUCTURE_PROMPT = BATCH_STRUCTURE_PROMPT + SUMMARY_INSTRUCTION
+MERGE_PROMPT = MERGE_PROMPT + SUMMARY_INSTRUCTION

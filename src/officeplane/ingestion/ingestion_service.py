@@ -631,6 +631,9 @@ class VisionIngestionService:
             title=document.title,
             author=document.author,
             metadata=document.metadata,
+            summary=document.summary,
+            topics=document.topics,
+            key_entities=document.key_entities,
         )
 
         # Create chapters, sections, and pages
@@ -647,6 +650,7 @@ class VisionIngestionService:
                     chapter_id=db_chapter.id,
                     title=section.title,
                     order_index=section.order_index,
+                    summary=section.summary,
                 )
 
                 for page in section.pages:
