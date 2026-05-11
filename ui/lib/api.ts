@@ -1,10 +1,8 @@
 import type {
   Document,
-  DocumentInstance,
   DocumentListItem,
   ExecutePlanResponse,
   ExecutionHistoryEvent,
-  InstanceState,
   Metrics,
   PlanResponse,
   PlanTree,
@@ -119,26 +117,6 @@ export const api = {
 
   getDownloadUrl(documentId: string, format: 'original' | 'docx' | 'markdown' | 'md' = 'original') {
     return buildUrl(`/documents/${encodeURIComponent(documentId)}/download`, { format })
-  },
-
-  getInstances(state?: InstanceState) {
-    return request<DocumentInstance[]>('/instances', {
-      query: { state },
-    })
-  },
-
-  closeInstance(instanceId: string) {
-    return request<DocumentInstance>(
-      `/instances/${encodeURIComponent(instanceId)}/close`,
-      { method: 'POST' }
-    )
-  },
-
-  deleteInstance(instanceId: string) {
-    return request<{ status: string; id: string }>(
-      `/instances/${encodeURIComponent(instanceId)}`,
-      { method: 'DELETE' }
-    )
   },
 
   getTasks(params: {

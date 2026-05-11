@@ -49,7 +49,6 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
       }
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['documents'] })
-      queryClient.invalidateQueries({ queryKey: ['instances'] })
       queryClient.invalidateQueries({ queryKey: ['metrics'] })
       setDeleteTarget(null)
     },
@@ -276,7 +275,7 @@ export function DocumentStructure({ onSelectSection }: DocumentStructureProps) {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
         title="Delete Document"
-        message={`Are you sure you want to delete "${deleteTarget?.title}"? This will also close any associated instances. This action cannot be undone.`}
+        message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"

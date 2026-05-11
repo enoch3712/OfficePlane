@@ -38,20 +38,7 @@ export default function Dashboard() {
 
       const document = await response.json()
 
-      const instanceResponse = await fetch('http://localhost:8001/api/instances', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: document.id }),
-      })
-
-      if (!instanceResponse.ok) {
-        throw new Error('Failed to create instance')
-      }
-
-      await instanceResponse.json()
-
       queryClient.invalidateQueries({ queryKey: ['documents'] })
-      queryClient.invalidateQueries({ queryKey: ['instances'] })
       queryClient.invalidateQueries({ queryKey: ['metrics'] })
 
       addToast({
@@ -95,7 +82,7 @@ export default function Dashboard() {
             className="gap-2"
           >
             <Plus className="w-4 h-4" />
-            {isUploading ? 'Uploading...' : 'Open Instance'}
+            {isUploading ? 'Uploading...' : 'Upload Document'}
           </Button>
         }
       />

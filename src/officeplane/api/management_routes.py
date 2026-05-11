@@ -9,10 +9,9 @@ import asyncio
 import json
 from pydantic import BaseModel
 
-from prisma.enums import InstanceState, TaskState, TaskPriority, EventType
+from prisma.enums import TaskState, TaskPriority, EventType
 from ..agentic import OrchestrationSettings, WorkchestratorPlanner, settings_store
 from ..management.db import get_db
-from ..management.instance_manager import instance_manager
 from ..management.task_queue import task_queue
 from ..documents.models import DocumentModel
 from ..documents.store import DocumentStore
@@ -34,12 +33,6 @@ websocket_connections: set[WebSocket] = set()
 # ============================================================
 # REQUEST/RESPONSE MODELS
 # ============================================================
-
-
-class CreateInstanceRequest(BaseModel):
-    documentId: Optional[str] = None
-    driverType: Optional[str] = None
-    filePath: Optional[str] = None
 
 
 class PlanDocumentRequest(BaseModel):
@@ -230,64 +223,6 @@ def _build_plan_generator_for_role(role: str, settings: OrchestrationSettings) -
 
 
 planner_service = WorkchestratorPlanner(generator_factory=_build_plan_generator_for_role)
-
-
-# ============================================================
-# INSTANCES
-# ============================================================
-
-
-@router.get("/instances")
-async def list_instances(state: Optional[str] = None):
-    """List all document instances"""
-    state_enum = InstanceState(state) if state else None
-    instances = await instance_manager.list_instances(state=state_enum)
-    return instances
-
-
-@router.get("/instances/{instance_id}")
-async def get_instance(instance_id: str):
-    """Get instance by ID"""
-    instance = await instance_manager.get_instance(instance_id)
-    if not instance:
-        raise HTTPException(status_code=404, detail="Instance not found")
-    return instance
-
-
-@router.post("/instances")
-async def create_instance(request: CreateInstanceRequest = Body(...)):
-    """Create a new document instance"""
-    # Use configured default driver if not specified
-    driver = request.driverType or config.DEFAULT_DRIVER_TYPE
-
-    instance = await instance_manager.create_instance(
-        driver_type=driver,
-        document_id=request.documentId,
-        file_path=request.filePath,
-    )
-
-    # Broadcast event
-    await broadcast_event("instance_update", instance)
-
-    return instance
-
-
-@router.post("/instances/{instance_id}/close")
-async def close_instance(instance_id: str):
-    """Close an instance"""
-    instance = await instance_manager.close_instance(instance_id)
-
-    # Broadcast event
-    await broadcast_event("instance_update", instance)
-
-    return instance
-
-
-@router.delete("/instances/{instance_id}")
-async def delete_instance(instance_id: str):
-    """Delete an instance"""
-    await instance_manager.delete_instance(instance_id)
-    return {"status": "deleted", "id": instance_id}
 
 
 # ============================================================
@@ -643,19 +578,6 @@ async def delete_document(document_id: str):
     document = await db.document.find_unique(where={"id": document_id})
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-
-    # Close any instances associated with this document
-    instances = await db.documentinstance.find_many(
-        where={"documentId": document_id}
-    )
-    for instance in instances:
-        try:
-            await instance_manager.close_instance(instance.id)
-        except Exception:
-            pass  # Instance might already be closed
-
-    # Delete associated instances
-    await db.documentinstance.delete_many(where={"documentId": document_id})
 
     # Delete document (cascades to chapters, sections, pages due to DB relations)
     await db.document.delete(where={"id": document_id})
@@ -1167,7 +1089,6 @@ async def create_task(
     payload: dict = {},
     taskName: Optional[str] = None,
     documentId: Optional[str] = None,
-    instanceId: Optional[str] = None,
     priority: str = "NORMAL",
     maxRetries: int = 3,
 ):
@@ -1179,7 +1100,6 @@ async def create_task(
         payload=payload,
         task_name=taskName,
         document_id=documentId,
-        instance_id=instanceId,
         priority=priority_enum,
         max_retries=maxRetries,
     )
@@ -1251,24 +1171,6 @@ async def get_metrics():
     """Get system metrics"""
     db = await get_db()
 
-    # Instance metrics
-    instances = await db.documentinstance.find_many()
-    instances_by_state = {}
-    total_memory = 0
-    total_cpu = 0
-    active_count = 0
-
-    for inst in instances:
-        state = inst.state  # state is already a string from the database
-        instances_by_state[state] = instances_by_state.get(state, 0) + 1
-
-        if state in [InstanceState.OPEN.value, InstanceState.IDLE.value, InstanceState.IN_USE.value]:
-            active_count += 1
-            if inst.memoryMb:
-                total_memory += inst.memoryMb
-            if inst.cpuPercent:
-                total_cpu += inst.cpuPercent
-
     # Task metrics
     tasks = await db.task.find_many()
     tasks_by_state = {}
@@ -1292,10 +1194,6 @@ async def get_metrics():
     failure_rate = failed_count / len(tasks) if tasks else 0
 
     return {
-        "instances": {
-            "total": len(instances),
-            "byState": instances_by_state,
-        },
         "tasks": {
             "total": len(tasks),
             "byState": tasks_by_state,
@@ -1304,8 +1202,8 @@ async def get_metrics():
         },
         "system": {
             "uptime": 0,  # TODO: track uptime
-            "memoryUsageMb": total_memory / active_count if active_count > 0 else 0,
-            "cpuPercent": total_cpu / active_count if active_count > 0 else 0,
+            "memoryUsageMb": 0,
+            "cpuPercent": 0,
         },
     }
 

@@ -17,11 +17,6 @@ export function MetricsPanel() {
 
   const stats = [
     {
-      label: 'Active Instances',
-      value: metrics?.instances.byState.OPEN || 0,
-      detail: `of ${metrics?.instances.total || 0}`,
-    },
-    {
       label: 'Queued Tasks',
       value: metrics?.tasks.byState.QUEUED || 0,
       detail: `of ${metrics?.tasks.total || 0}`,

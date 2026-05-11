@@ -92,7 +92,7 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">Open Instance</h2>
+            <h2 className="text-2xl font-semibold text-foreground">Upload Document</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Upload a Word or PDF document to get started
             </p>
@@ -219,7 +219,7 @@ export function FileUploadDialog({ isOpen, onClose, onFileSelect }: FileUploadDi
               disabled={!selectedFile}
               className="flex-1"
             >
-              Open Instance
+              Upload
             </Button>
           </div>
         </div>

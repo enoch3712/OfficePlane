@@ -9,7 +9,6 @@ from officeplane.api.team_routes import router as team_router
 from officeplane.api.skills_routes import router as skills_router
 from officeplane.api.jobs_routes import router as jobs_router
 from officeplane.api.sessions_routes import router as sessions_router
-from officeplane.api.ecm.instances import router as ecm_instances_router
 from officeplane.api.ecm.documents import router as ecm_documents_router
 from officeplane.api.ecm.collections import router as ecm_collections_router
 from officeplane.api.ecm.search import router as ecm_search_router
@@ -92,7 +91,6 @@ def create_app() -> FastAPI:
     app.include_router(skills_router)          # Skill discovery
     app.include_router(jobs_router)            # Agent run + skill-based jobs
     app.include_router(sessions_router)        # ECM atomic sessions
-    app.include_router(ecm_instances_router)   # ECM: instance lifecycle + agent actions
     app.include_router(ecm_documents_router)   # ECM: metadata, permissions, audit, lifecycle
     app.include_router(ecm_collections_router) # ECM: collections/folders
     app.include_router(ecm_search_router)      # ECM: search + similarity

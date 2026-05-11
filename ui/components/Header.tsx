@@ -50,24 +50,6 @@ export function Header({ connectionStatus }: HeaderProps) {
       const document = await response.json()
       console.log('Document uploaded successfully:', document)
 
-      // Create an instance with the uploaded document
-      const instanceResponse = await fetch('http://localhost:8001/api/instances', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentId: document.id,
-        }),
-      })
-
-      if (!instanceResponse.ok) {
-        throw new Error('Failed to create instance')
-      }
-
-      const instance = await instanceResponse.json()
-      console.log('Instance created successfully:', instance)
-
       // Show success toast
       addToast({
         type: 'document',
@@ -131,13 +113,13 @@ export function Header({ connectionStatus }: HeaderProps) {
                 </span>
               </div>
 
-              {/* Open Instance Button */}
+              {/* Upload Document Button */}
               <Button
                 onClick={() => setIsUploadDialogOpen(true)}
                 className="gap-2 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-200"
               >
                 <Plus className="w-4 h-4" />
-                Open Instance
+                Upload Document
               </Button>
             </div>
           </div>

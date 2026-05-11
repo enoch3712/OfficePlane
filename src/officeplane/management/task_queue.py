@@ -429,7 +429,6 @@ class TaskQueue:
         payload: dict[str, Any],
         task_name: Optional[str] = None,
         document_id: Optional[str] = None,
-        instance_id: Optional[str] = None,
         priority: TaskPriority = TaskPriority.NORMAL,
         max_retries: int = 3,
     ) -> dict:
@@ -442,7 +441,6 @@ class TaskQueue:
                 "taskType": task_type,
                 "taskName": task_name,
                 "documentId": document_id,
-                "instanceId": instance_id,
                 "payload": payload,
                 "priority": priority,
                 "maxRetries": max_retries,

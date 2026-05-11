@@ -53,7 +53,6 @@ model Document {
   // Relations
   chapters    Chapter[]
   chunks      Chunk[]
-  instances   DocumentInstance[]
   tasks       Task[]
   history     ExecutionHistory[]
   collections DocumentCollection[]
@@ -195,52 +194,6 @@ model Chunk {
 }
 
 // ============================================================
-// NEW: INSTANCE LIFECYCLE MANAGEMENT
-// ============================================================
-
-enum InstanceState {
-  OPENING
-  OPEN
-  IDLE
-  IN_USE
-  CLOSING
-  CLOSED
-  ERROR
-  CRASHED
-
-  @@map("instance_state")
-}
-
-model DocumentInstance {
-  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  documentId    String?       @map("document_id") @db.Uuid
-  state         InstanceState @default(OPENING)
-  stateMessage  String?       @map("state_message")
-  processPid    Int?          @map("process_pid")
-  hostName      String?       @map("host_name")
-  driverType    String        @map("driver_type") // 'libreoffice', 'rust', 'mock'
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
-  openedAt      DateTime?     @map("opened_at") @db.Timestamptz
-  lastUsedAt    DateTime?     @map("last_used_at") @db.Timestamptz
-  closedAt      DateTime?     @map("closed_at") @db.Timestamptz
-  memoryMb      Int?          @map("memory_mb")
-  cpuPercent    Float?        @map("cpu_percent")
-  filePath      String?       @map("file_path")
-  metadata      Json          @default("{}")
-
-  // Relations
-  document Document?          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  tasks    Task[]
-  history  ExecutionHistory[]
-
-  @@index([state], name: "idx_instances_state")
-  @@index([documentId], name: "idx_instances_document")
-  @@index([lastUsedAt(sort: Desc)], name: "idx_instances_last_used")
-  @@index([hostName, state], name: "idx_instances_host")
-  @@map("document_instances")
-}
-
-// ============================================================
 // NEW: TASK QUEUE SYSTEM
 // ============================================================
 
@@ -270,7 +223,6 @@ model Task {
   taskType           String        @map("task_type")
   taskName           String?       @map("task_name")
   documentId         String?       @map("document_id") @db.Uuid
-  instanceId         String?       @map("instance_id") @db.Uuid
   parentTaskId       String?       @map("parent_task_id") @db.Uuid
   payload            Json          @default("{}")
   result             Json?
@@ -294,7 +246,6 @@ model Task {
 
   // Relations
   document    Document?          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  instance    DocumentInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
   parentTask  Task?              @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
   subTasks    Task[]             @relation("TaskHierarchy")
   retries     TaskRetry[]
@@ -303,7 +254,6 @@ model Task {
   @@index([state, scheduledFor], name: "idx_queue_state")
   @@index([priority(sort: Desc), createdAt], name: "idx_queue_priority")
   @@index([documentId], name: "idx_queue_document")
-  @@index([instanceId], name: "idx_queue_instance")
   @@index([parentTaskId], name: "idx_queue_parent")
   @@index([createdAt(sort: Desc)], name: "idx_queue_created")
   @@map("task_queue")
@@ -352,7 +302,6 @@ model ExecutionHistory {
   eventType    EventType @map("event_type")
   eventMessage String?   @map("event_message")
   documentId   String?   @map("document_id") @db.Uuid
-  instanceId   String?   @map("instance_id") @db.Uuid
   taskId       String?   @map("task_id") @db.Uuid
   timestamp    DateTime  @default(now()) @db.Timestamptz
   durationMs   Int?      @map("duration_ms")
@@ -364,13 +313,11 @@ model ExecutionHistory {
 
   // Relations
   document Document?          @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  instance DocumentInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
   task     Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([timestamp(sort: Desc)], name: "idx_history_timestamp")
   @@index([eventType], name: "idx_history_event_type")
   @@index([documentId], name: "idx_history_document")
-  @@index([instanceId], name: "idx_history_instance")
   @@index([taskId], name: "idx_history_task")
   @@index([traceId], name: "idx_history_trace")
   @@map("execution_history")

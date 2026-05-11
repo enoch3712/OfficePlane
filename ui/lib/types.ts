@@ -1,14 +1,3 @@
-export enum InstanceState {
-  OPENING = 'OPENING',
-  OPEN = 'OPEN',
-  IDLE = 'IDLE',
-  IN_USE = 'IN_USE',
-  CLOSING = 'CLOSING',
-  CLOSED = 'CLOSED',
-  ERROR = 'ERROR',
-  CRASHED = 'CRASHED',
-}
-
 export enum TaskState {
   QUEUED = 'QUEUED',
   RUNNING = 'RUNNING',
@@ -88,31 +77,11 @@ export interface Document {
   total_pages: number
 }
 
-export interface DocumentInstance {
-  id: string
-  documentId?: string | null
-  state: InstanceState
-  stateMessage?: string | null
-  processPid?: number | null
-  hostName?: string | null
-  driverType: string
-  createdAt?: string
-  openedAt?: string | null
-  lastUsedAt?: string | null
-  closedAt?: string | null
-  memoryMb?: number | null
-  cpuPercent?: number | null
-  filePath?: string | null
-  metadata?: Record<string, unknown>
-  document?: DocumentListItem | null
-}
-
 export interface Task {
   id: string
   taskType: string
   taskName?: string | null
   documentId?: string | null
-  instanceId?: string | null
   state: TaskState
   priority: TaskPriority
   maxRetries: number
@@ -241,10 +210,6 @@ export interface VerifyResponse {
 }
 
 export interface Metrics {
-  instances: {
-    total: number
-    byState: Record<string, number>
-  }
   tasks: {
     total: number
     byState: Record<string, number>
