@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useSSE, type SSEEvent } from '@/hooks/useSSE'
 import {
   Play,
@@ -12,6 +12,9 @@ import {
   XCircle,
   Loader2,
   ExternalLink,
+  FolderOpen,
+  Download,
+  Link2,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +24,26 @@ import { cn } from '@/lib/cn'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
 
 type OutputFormat = 'pptx' | 'html' | 'both'
+type CollectionFormat = 'docx' | 'pptx'
+
+interface Collection {
+  collection_id: string
+  name: string
+  description: string | null
+  document_count: number
+}
+
+interface CollectionResult {
+  file_path: string
+  file_url: string
+  title: string
+  model: string
+  format: string
+  source_document_count: number
+  source_document_ids: string[]
+  slide_count?: number
+  node_count?: number
+}
 
 interface GenerateJob {
   jobId: string
@@ -286,6 +309,260 @@ export default function GeneratePage() {
               <EventLine key={i} event={evt} />
             ))}
           </div>
+        </div>
+      </div>
+
+      <GenerateFromCollection />
+    </div>
+  )
+}
+
+function GenerateFromCollection() {
+  const [collections, setCollections] = useState<Collection[]>([])
+  const [loadingCollections, setLoadingCollections] = useState(false)
+  const [collectionId, setCollectionId] = useState('')
+  const [brief, setBrief] = useState('')
+  const [format, setFormat] = useState<CollectionFormat>('docx')
+  const [audience, setAudience] = useState('')
+  const [tone, setTone] = useState('')
+  const [slideCount, setSlideCount] = useState('10')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [result, setResult] = useState<CollectionResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLoadingCollections(true)
+    fetch(`${API_URL}/api/ecm/collections`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCollections(data.collections ?? [])
+      })
+      .catch(() => setCollections([]))
+      .finally(() => setLoadingCollections(false))
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!collectionId || !brief.trim() || isSubmitting) return
+    setIsSubmitting(true)
+    setResult(null)
+    setError(null)
+
+    try {
+      const inputs: Record<string, unknown> = {
+        collection_id: collectionId,
+        brief: brief.trim(),
+        format,
+      }
+      if (audience.trim()) inputs.audience = audience.trim()
+      if (tone.trim()) inputs.tone = tone.trim()
+      if (format === 'pptx' && slideCount) inputs.slide_count = parseInt(slideCount, 10)
+
+      const res = await fetch(`${API_URL}/api/jobs/invoke/generate-from-collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.detail || 'Generation failed')
+      }
+      const data = await res.json()
+      setResult(data.output as CollectionResult)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const jobId = result?.file_url?.split('/')[3]
+
+  return (
+    <div className="mt-10 pt-8 border-t border-border">
+      <div className="flex items-center gap-2 mb-5">
+        <FolderOpen className="w-4 h-4 text-primary" />
+        <h2 className="text-base font-semibold text-foreground">Generate from Collection</h2>
+        <Badge variant="neutral" className="text-[10px] font-mono ml-1">new</Badge>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+              Collection
+            </label>
+            {loadingCollections ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Loading collections...
+              </div>
+            ) : (
+              <select
+                value={collectionId}
+                onChange={(e) => setCollectionId(e.target.value)}
+                className="w-full px-3 py-2 bg-depth-1 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/30"
+                disabled={isSubmitting}
+              >
+                <option value="">Select a collection…</option>
+                {collections.map((c) => (
+                  <option key={c.collection_id} value={c.collection_id}>
+                    {c.name} ({c.document_count} doc{c.document_count !== 1 ? 's' : ''})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+              Brief
+            </label>
+            <textarea
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              placeholder="Describe the combined document you want to produce…"
+              className="w-full h-28 px-4 py-3 bg-depth-1 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none text-sm"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+                Format
+              </label>
+              <select
+                value={format}
+                onChange={(e) => setFormat(e.target.value as CollectionFormat)}
+                className="w-full px-3 py-2 bg-depth-1 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/30"
+                disabled={isSubmitting}
+              >
+                <option value="docx">DOCX</option>
+                <option value="pptx">PPTX</option>
+              </select>
+            </div>
+            {format === 'pptx' && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Slides
+                </label>
+                <input
+                  type="number"
+                  value={slideCount}
+                  onChange={(e) => setSlideCount(e.target.value)}
+                  min={1}
+                  max={50}
+                  className="w-full px-3 py-2 bg-depth-1 border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/30"
+                  disabled={isSubmitting}
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+                Audience
+              </label>
+              <input
+                type="text"
+                value={audience}
+                onChange={(e) => setAudience(e.target.value)}
+                placeholder="general"
+                className="w-full px-3 py-2 bg-depth-1 border border-border rounded-lg text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+                Tone
+              </label>
+              <input
+                type="text"
+                value={tone}
+                onChange={(e) => setTone(e.target.value)}
+                placeholder="neutral"
+                className="w-full px-3 py-2 bg-depth-1 border border-border rounded-lg text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={!collectionId || !brief.trim() || isSubmitting}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary/15 border border-primary/30 text-primary rounded-lg font-medium text-sm hover:bg-primary/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
+            Generate
+          </button>
+        </form>
+
+        {/* Result panel */}
+        <div className="space-y-3">
+          {error && (
+            <div className="p-4 rounded-lg border border-l-[3px] border-l-red-400 bg-depth-1">
+              <div className="flex items-center gap-2 mb-1">
+                <XCircle className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-medium text-red-400">Error</span>
+              </div>
+              <p className="text-sm text-red-400/80">{error}</p>
+            </div>
+          )}
+          {result && (
+            <div className="p-4 rounded-lg border border-l-[3px] border-l-primary bg-depth-1 space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">{result.title}</span>
+                <span className="ml-auto text-[10px] font-mono text-muted-foreground uppercase">
+                  {result.format}
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono space-y-0.5">
+                <div>Sources: {result.source_document_count}</div>
+                {result.slide_count !== undefined && <div>Slides: {result.slide_count}</div>}
+                {result.node_count !== undefined && <div>Nodes: {result.node_count}</div>}
+                <div className="text-[10px] opacity-60">Model: {result.model}</div>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <a
+                  href={`${API_URL}${result.file_url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download {result.format.toUpperCase()}
+                </a>
+                {jobId && (
+                  <a
+                    href={`/lineage?workspace=${jobId}`}
+                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    View source trail
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          {!result && !error && !isSubmitting && (
+            <div className="p-4 rounded-lg border border-dashed border-border bg-depth-1/50 text-center">
+              <FolderOpen className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground/60">
+                Select a collection and write a brief to combine all its documents into one file.
+              </p>
+            </div>
+          )}
+          {isSubmitting && (
+            <div className="p-4 rounded-lg border border-border bg-depth-1 flex items-center gap-3">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Generating combined document…</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
