@@ -138,3 +138,7 @@ from officeplane.api.streaming_routes import router as streaming_router  # noqa:
 app.include_router(streaming_router)
 from officeplane.api.activity_routes import router as activity_router  # noqa: E402
 app.include_router(activity_router)
+from officeplane.api.analyze_routes import router as analyze_router  # noqa: E402
+app.include_router(analyze_router)
+from officeplane.api.templates_routes import router as templates_router  # noqa: E402
+app.include_router(templates_router)
