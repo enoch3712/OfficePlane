@@ -36,6 +36,8 @@ class Skill:
     tools: list[str] = field(default_factory=list)
     body: str = ""
     path: Path | None = None
+    model: str | None = None
+    tier: str | None = None
 
 
 _FRONTMATTER_DELIM = "---"
@@ -67,6 +69,8 @@ def load_skill(skill_dir: Path) -> Skill:
         tools=list(meta.get("tools", []) or []),
         body=body.strip(),
         path=skill_dir,
+        model=meta.get("model") or None,
+        tier=meta.get("tier") or None,
     )
 
 

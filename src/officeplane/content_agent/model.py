@@ -56,6 +56,38 @@ def model_config_from_env() -> ModelConfig:
     )
 
 
+def model_for_skill(skill_name: str, *, fallback_tier: str = "flash") -> str:
+    """Resolve the model string for a given skill, honouring:
+
+      1) env OFFICEPLANE_AGENT_MODEL_<UPPER_UNDERSCORE> (e.g. GENERATE_XLSX)
+      2) the skill's frontmatter model: field (looked up via skill_loader)
+      3) fallback_tier env (OFFICEPLANE_AGENT_MODEL_FLASH / _PRO)
+      4) built-in default deepseek/deepseek-v4-flash
+
+    Returns the LiteLLM model string (e.g. "deepseek/deepseek-v4-pro").
+    """
+    env_key = "OFFICEPLANE_AGENT_MODEL_" + skill_name.upper().replace("-", "_")
+    env_override = os.getenv(env_key)
+    if env_override:
+        return env_override
+
+    # Frontmatter lookup (lazy import to avoid circular dependency)
+    try:
+        from pathlib import Path  # noqa: PLC0415
+
+        from officeplane.content_agent.skill_loader import discover_skills  # noqa: PLC0415
+
+        skills_root = Path(__file__).resolve().parent / "skills"
+        for s in discover_skills(skills_root):
+            if s.name == skill_name and s.model:
+                return s.model
+    except Exception:  # noqa: BLE001
+        pass
+
+    # Tier fallback
+    return model_for_tier(fallback_tier).model
+
+
 def model_for_tier(tier: str = "flash") -> ModelConfig:
     """Return a ModelConfig for the given tier ('flash' or 'pro').
 

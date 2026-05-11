@@ -177,7 +177,8 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
             source_blob=_format_source_blob(sources),
         )
 
-        model = os.getenv("OFFICEPLANE_AGENT_MODEL_FLASH", "deepseek/deepseek-v4-flash")
+        from officeplane.content_agent.model import model_for_skill
+        model = model_for_skill("generate-from-collection")
         log.info(
             "generate-from-collection via %s for %d sources (fmt=%s)",
             model,

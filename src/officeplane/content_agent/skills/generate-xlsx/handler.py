@@ -241,7 +241,8 @@ async def execute(*, inputs: dict[str, Any], progress=None, **_) -> dict[str, An
             source_blob=source_blob,
         )
 
-        model = os.getenv("OFFICEPLANE_AGENT_MODEL_FLASH", "deepseek/deepseek-v4-flash")
+        from officeplane.content_agent.model import model_for_skill
+        model = model_for_skill("generate-xlsx")
         log.info("generate-xlsx via %s for sources=%s", model, source_ids)
         await emit(progress, "calling_llm", f"Generating xlsx with {model}…", model=model)
 

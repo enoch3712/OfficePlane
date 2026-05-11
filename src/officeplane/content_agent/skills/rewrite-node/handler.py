@@ -132,7 +132,8 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
         raise ValueError("target node has no text to rewrite")
 
     prompt = _build_prompt(target, neighbours, parent, instruction, tone)
-    model = os.getenv("OFFICEPLANE_AGENT_MODEL_FLASH", "deepseek/deepseek-v4-flash")
+    from officeplane.content_agent.model import model_for_skill
+    model = model_for_skill("rewrite-node")
 
     resp = await litellm.acompletion(
         model=model,
