@@ -14,6 +14,7 @@ from officeplane.api.ecm.documents import router as ecm_documents_router
 from officeplane.api.ecm.collections import router as ecm_collections_router
 from officeplane.api.ecm.search import router as ecm_search_router
 from officeplane.api.ecm.workflows import router as ecm_workflows_router
+from officeplane.api.lineage_routes import router as lineage_router
 from officeplane.api.middleware import RequestIdMiddleware
 from officeplane.api.websocket import websocket_endpoint
 from officeplane.observability.logging import configure_logging
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
     app.include_router(ecm_collections_router) # ECM: collections/folders
     app.include_router(ecm_search_router)      # ECM: search + similarity
     app.include_router(ecm_workflows_router)   # ECM: approval workflows
+    app.include_router(lineage_router)         # Lineage / provenance graph
 
     # Health check endpoint
     @app.get("/health")
