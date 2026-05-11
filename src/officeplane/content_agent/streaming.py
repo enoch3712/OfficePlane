@@ -4,14 +4,20 @@ SSE streaming for content generation agent events.
 Uses Redis pub/sub so the worker (producer) and the HTTP handler (consumer)
 are decoupled — works even across processes.  Falls back to in-process
 asyncio.Queue if Redis is unavailable.
+
+Also exposes a lightweight ``ProgressEvent`` / ``emit()`` API used by
+generate-docx/pptx/pdf handlers to report per-step milestone events.
 """
 
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
-from typing import Any, AsyncGenerator, Dict
+import time
+from dataclasses import dataclass, field
+from typing import Any, AsyncGenerator, Awaitable, Callable, Dict, Union
 
 log = logging.getLogger("officeplane.content_agent.streaming")
 
@@ -91,3 +97,53 @@ def _format_sse(event: str, data: Dict[str, Any]) -> str:
 
 # Global SSE manager
 sse_manager = SSEManager()
+
+
+# ---------------------------------------------------------------------------
+# Lightweight milestone-event emitter (Phase 24)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ProgressEvent:
+    step: str
+    label: str
+    timestamp: float = field(default_factory=time.time)
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "step": self.step,
+            "label": self.label,
+            "timestamp": self.timestamp,
+            **self.extra,
+        }
+
+
+ProgressCallback = Union[
+    Callable[[ProgressEvent], None],
+    Callable[[ProgressEvent], Awaitable[None]],
+    None,
+]
+
+
+async def emit(
+    callback: ProgressCallback,
+    step: str,
+    label: str,
+    **extra: Any,
+) -> None:
+    """Emit a progress milestone to ``callback``.
+
+    - If ``callback`` is ``None``, returns immediately (no-op).
+    - If the callback returns a coroutine, it is awaited.
+    - Any exception raised by the callback is swallowed so it cannot crash a handler.
+    """
+    if callback is None:
+        return
+    event = ProgressEvent(step=step, label=label, extra=extra)
+    try:
+        result = callback(event)
+        if inspect.isawaitable(result):
+            await result
+    except Exception as e:
+        log.warning("progress emit failed (step=%s): %s", step, e)

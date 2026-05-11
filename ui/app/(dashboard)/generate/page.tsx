@@ -15,11 +15,14 @@ import {
   FolderOpen,
   Download,
   Link2,
+  Radio,
 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Badge } from '@/components/ui/badge'
 import { StatusIndicator } from '@/components/ui/status-indicator'
 import { cn } from '@/lib/cn'
+import { streamSkill, type ProgressEvent } from '@/lib/api/streaming'
+import { StreamingProgress } from '@/components/generate/StreamingProgress'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
 
@@ -62,6 +65,15 @@ export default function GeneratePage() {
   const [job, setJob] = useState<GenerateJob | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const streamOutputRef = useRef<HTMLDivElement>(null)
+
+  // --- SSE streaming state ---
+  const [streamBrief, setStreamBrief] = useState('')
+  const [streamSourceIds, setStreamSourceIds] = useState('')
+  const [streamEvents, setStreamEvents] = useState<ProgressEvent[]>([])
+  const [streamStatus, setStreamStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [streamResult, setStreamResult] = useState<Record<string, unknown> | null>(null)
+  const [streamError, setStreamError] = useState<string | null>(null)
+  const streamAbortRef = useRef<AbortController | null>(null)
 
   const handleEvent = useCallback((event: SSEEvent) => {
     if (event.event === 'start') {
@@ -151,6 +163,42 @@ export default function GeneratePage() {
   }
 
   const isRunning = job?.status === 'queued' || job?.status === 'running'
+
+  const handleStreamGenerate = async () => {
+    if (!streamBrief.trim() || !streamSourceIds.trim() || streamStatus === 'running') return
+    const ids = streamSourceIds.split(',').map((s) => s.trim()).filter(Boolean)
+    if (!ids.length) return
+
+    if (streamAbortRef.current) streamAbortRef.current.abort()
+    const ctrl = new AbortController()
+    streamAbortRef.current = ctrl
+
+    setStreamEvents([])
+    setStreamResult(null)
+    setStreamError(null)
+    setStreamStatus('running')
+
+    try {
+      await streamSkill(
+        'generate-docx',
+        { source_document_ids: ids, brief: streamBrief.trim() },
+        ({ name, data }) => {
+          if (name === 'progress') {
+            setStreamEvents((prev) => [...prev, data as unknown as ProgressEvent])
+          } else if (name === 'result') {
+            setStreamResult(data)
+          }
+        },
+        ctrl.signal,
+      )
+      setStreamStatus('done')
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        setStreamError(err instanceof Error ? err.message : 'Stream failed')
+        setStreamStatus('error')
+      }
+    }
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -308,6 +356,90 @@ export default function GeneratePage() {
             {events.map((evt, i) => (
               <EventLine key={i} event={evt} />
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* SSE Streaming Generate (docx) */}
+      <div className="mt-10 pt-8 border-t border-border">
+        <div className="flex items-center gap-2 mb-5">
+          <Radio className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-semibold text-foreground">Generate DOCX (stream)</h2>
+          <Badge variant="neutral" className="text-[10px] font-mono ml-1">phase 24</Badge>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+                Source Document IDs (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={streamSourceIds}
+                onChange={(e) => setStreamSourceIds(e.target.value)}
+                placeholder="uuid1, uuid2, …"
+                className="w-full px-3 py-2 bg-depth-1 border border-border rounded-lg text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                disabled={streamStatus === 'running'}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">
+                Brief
+              </label>
+              <textarea
+                value={streamBrief}
+                onChange={(e) => setStreamBrief(e.target.value)}
+                placeholder="Describe the document you want to produce…"
+                className="w-full h-28 px-4 py-3 bg-depth-1 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none text-sm"
+                disabled={streamStatus === 'running'}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleStreamGenerate}
+              disabled={!streamBrief.trim() || !streamSourceIds.trim() || streamStatus === 'running'}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary/15 border border-primary/30 text-primary rounded-lg font-medium text-sm hover:bg-primary/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {streamStatus === 'running' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Radio className="w-4 h-4" />
+              )}
+              Generate (stream)
+            </button>
+          </div>
+          <div className="space-y-3">
+            <StreamingProgress events={streamEvents} status={streamStatus} />
+            {streamError && (
+              <div className="p-3 rounded-lg border border-l-[3px] border-l-red-400 bg-depth-1 text-sm text-red-400">
+                {streamError}
+              </div>
+            )}
+            {streamResult && (
+              <div className="p-4 rounded-lg border border-l-[3px] border-l-primary bg-depth-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-foreground">
+                    {(streamResult.title as string) ?? 'Done'}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground font-mono space-y-0.5">
+                  {streamResult.node_count !== undefined && <div>Nodes: {streamResult.node_count as number}</div>}
+                  {!!streamResult.model && <div>Model: {streamResult.model as string}</div>}
+                </div>
+                {!!streamResult.file_url && (
+                  <a
+                    href={`${API_URL}${streamResult.file_url as string}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download DOCX
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

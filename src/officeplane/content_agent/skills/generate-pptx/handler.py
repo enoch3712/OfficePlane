@@ -28,6 +28,7 @@ from officeplane.content_agent.persistence import (
 )
 from officeplane.content_agent.renderers.document import document_to_dict, parse_document
 from officeplane.content_agent.renderers.pptx_render import render_pptx
+from officeplane.content_agent.streaming import emit
 
 log = logging.getLogger("officeplane.skills.generate-pptx")
 
@@ -157,7 +158,7 @@ def _format_source_blob(sources: list[dict[str, Any]]) -> str:
 # Entry point
 # ---------------------------------------------------------------------------
 
-async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
+async def execute(*, inputs: dict[str, Any], progress=None, **_) -> dict[str, Any]:
     """Generate a .pptx from source documents using the agnostic Document tree.
 
     Args:
@@ -187,8 +188,10 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
             raise ValueError("brief is required")
         if slide_count < 1 or slide_count > 100:
             raise ValueError("slide_count must be 1..100")
+        await emit(progress, "validating", "Validating inputs")
 
         # --- load sources ---
+        await emit(progress, "loading_sources", f"Loading {len(source_ids)} source document(s)…")
         sources = await _load_sources(source_ids)
         if not sources:
             raise ValueError(
@@ -207,6 +210,7 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
 
         model = os.getenv("OFFICEPLANE_AGENT_MODEL_FLASH", "deepseek/deepseek-v4-flash")
         log.info("generate-pptx via %s for sources=%s slide_count=%d", model, source_ids, slide_count)
+        await emit(progress, "calling_llm", f"Generating pptx with {model}…", model=model)
 
         response = await litellm.acompletion(
             model=model,
@@ -220,6 +224,7 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise ValueError(f"LLM did not return JSON: {exc}") from exc
+        await emit(progress, "parsing", "Parsing generated document tree…")
 
         doc = parse_document(data)
 
@@ -231,6 +236,7 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
         workspace = workspace_root / job_id
         workspace.mkdir(parents=True, exist_ok=True)
 
+        await emit(progress, "rendering", f"Rendering output.pptx (~{slide_count} slides)…", node_count=slide_count)
         pptx_bytes = render_pptx(doc, workspace_dir=workspace)
 
         # Count actual slides in the rendered output
@@ -253,6 +259,7 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
         (workspace / "document.json").write_text(json.dumps(document_to_dict(doc)))
 
         # Persist provenance + initial revision
+        await emit(progress, "persisting", "Recording derivations + revision…")
         await persist_initial_revision(
             workspace_id=job_id,
             op="create",
@@ -277,6 +284,7 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
             error_message=None,
             duration_ms=int((time.time() - t0) * 1000),
         )
+        await emit(progress, "complete", "Done", **result_dict)
         return result_dict
 
     except Exception as e:
