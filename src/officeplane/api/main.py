@@ -125,3 +125,6 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+from officeplane.api.chat_routes import router as chat_router  # noqa: E402
+app.include_router(chat_router)
