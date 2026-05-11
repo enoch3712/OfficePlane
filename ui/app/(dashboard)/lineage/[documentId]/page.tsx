@@ -1,5 +1,4 @@
 import { LineageGraph } from '@/components/lineage/LineageGraph'
-import { Card } from '@/components/ui/card'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
@@ -35,11 +34,9 @@ export default async function LineagePage({ params }: LineagePageProps) {
         </div>
       </div>
 
-      <Card className="flex-1 overflow-hidden bg-depth-1 p-0">
-        <div className="h-full">
-          <LineageGraph documentId={documentId} />
-        </div>
-      </Card>
+      <div className="flex-1 min-h-0 overflow-hidden rounded-lg border border-border bg-depth-1">
+        <LineageGraph documentId={documentId} />
+      </div>
     </div>
   )
 }

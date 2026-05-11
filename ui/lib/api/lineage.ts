@@ -1,7 +1,9 @@
 import type { LineageResponse } from '@/lib/types'
 
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+
 export async function fetchLineage(documentId: string): Promise<LineageResponse> {
-  const res = await fetch(`/api/documents/${documentId}/lineage`, { cache: 'no-store' })
+  const res = await fetch(`${API}/api/documents/${documentId}/lineage`, { cache: 'no-store' })
   if (res.status === 404) {
     return mockLineage(documentId)
   }
