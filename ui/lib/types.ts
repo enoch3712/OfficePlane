@@ -267,3 +267,66 @@ export interface OrchestrationSummary {
   signals?: Record<string, unknown>
 }
 
+// ─── Lineage / Provenance ────────────────────────────────────────────────────
+
+export interface LineageDocumentNode {
+  id: string
+  type: string
+  label: string
+  parent_id: string | null
+}
+
+export interface LineageSourceSection {
+  id: string
+  title: string
+}
+
+export interface LineageSourceChapter {
+  id: string
+  title: string
+  sections: LineageSourceSection[]
+}
+
+export interface LineageSource {
+  id: string
+  title: string
+  chapters: LineageSourceChapter[]
+}
+
+export interface LineageDerivation {
+  id: string
+  generated_node_id: string
+  source_document_id: string
+  source_chapter_id?: string
+  source_section_id?: string
+  page_numbers: number[]
+  text_excerpt?: string
+  skill: string
+  model: string
+  confidence?: number
+  created_at: string
+}
+
+export interface LineageRevision {
+  id: string
+  parent_revision_id: string | null
+  revision_number: number
+  op: string
+  payload: Record<string, unknown>
+  actor: string | null
+  created_at: string
+}
+
+export interface LineageResponse {
+  document: {
+    id: string
+    title: string
+    workspace_id: string
+    output_path: string
+  }
+  nodes: LineageDocumentNode[]
+  sources: LineageSource[]
+  derivations: LineageDerivation[]
+  revisions: LineageRevision[]
+}
+

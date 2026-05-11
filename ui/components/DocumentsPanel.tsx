@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Document } from '@/lib/types'
-import { FileText, ChevronDown, ChevronRight, BookOpen, FileType, Hash, Trash2, Loader2 } from 'lucide-react'
+import { FileText, ChevronDown, ChevronRight, BookOpen, FileType, Hash, Trash2, GitBranch } from 'lucide-react'
 import { TimeAgo } from './TimeAgo'
 import { ConfirmDialog } from './ConfirmDialog'
 
@@ -174,14 +175,24 @@ export function DocumentsPanel() {
                         </div>
                       </div>
 
-                      {/* Delete Button */}
-                      <button
-                        onClick={(e) => handleDeleteClick(e, document.id, document.title)}
-                        className="p-2 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
-                        title="Delete document"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <Link
+                          href={`/lineage/${document.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-2 text-slate-500 hover:text-[#5EFCAB] hover:bg-[#5EFCAB]/10 rounded-lg transition-all"
+                          title="View source trail"
+                        >
+                          <GitBranch className="w-4 h-4" />
+                        </Link>
+                        <button
+                          onClick={(e) => handleDeleteClick(e, document.id, document.title)}
+                          className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                          title="Delete document"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 

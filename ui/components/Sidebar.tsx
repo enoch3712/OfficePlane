@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Sparkles,
   Users,
+  GitBranch,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Overview', href: '/overview', icon: LayoutDashboard },
   { name: 'Documents', href: '/documents', icon: FileText },
   { name: 'Generate', href: '/generate', icon: Sparkles },
+  { name: 'Source Trail', href: '/lineage', icon: GitBranch },
   { name: 'Teams', href: '/teams', icon: Users },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Instances', href: '/instances', icon: Layers },

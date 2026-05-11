@@ -111,7 +111,7 @@ const renderOrchestration = (summary?: OrchestrationSummary) => {
         )}
       </div>
 
-      {Object.keys(summary.signals).length > 0 && (
+      {summary.signals && Object.keys(summary.signals).length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {Object.entries(summary.signals).map(([key, value]) => (
             <span
@@ -121,29 +121,6 @@ const renderOrchestration = (summary?: OrchestrationSummary) => {
               {key}: {formatSignalValue(value)}
             </span>
           ))}
-        </div>
-      )}
-
-      {summary.transitions.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {summary.transitions.map((transition, index) => (
-            <div
-              key={`${transition.state}-${index}`}
-              className="rounded-md border border-indigo-100 bg-white px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                <span>{transition.state}</span>
-                <span>{transition.action}</span>
-              </div>
-              <div className="mt-1 text-sm text-indigo-900">{transition.reason}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {summary.validation_issues.length > 0 && (
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          {summary.validation_issues.join(' ')}
         </div>
       )}
     </div>
@@ -226,7 +203,8 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
   })
   const { data: orchestrationSettings } = useQuery({
     queryKey: ['orchestration-settings'],
-    queryFn: () => api.getOrchestrationSettings(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    queryFn: () => (api as any).getOrchestrationSettings?.() ?? Promise.resolve(null),
   })
 
   const activeDocument = useMemo(
@@ -262,11 +240,13 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
           prompt: trimmed,
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const planAny = plan as any
         const assistantMessage: ChatMessage = {
           id: `msg_${Date.now()}_plan`,
           role: 'assistant',
-          content: plan.orchestration
-            ? `Plan generated via ${plan.orchestration.strategy} in ${formatModeLabel(plan.orchestration.final_mode)} mode.`
+          content: planAny.orchestration
+            ? `Plan generated via ${planAny.orchestration.strategy} in ${formatModeLabel(planAny.orchestration.final_mode)} mode.`
             : 'Plan generated successfully.',
           actionLabel,
           plan,
@@ -715,7 +695,7 @@ export function AgenticChat({ selectedDocumentId }: AgenticChatProps) {
                     {message.plan.tree.tree.map((node) => renderNode(node))}
                   </div>
 
-                  {renderOrchestration(message.plan.orchestration)}
+                  {renderOrchestration((message.plan as any).orchestration)}
 
                   <div className="mt-4 flex justify-end">
                     <button
