@@ -46,6 +46,53 @@ log = logging.getLogger("officeplane.ingestion")
 ProgressCallback = Callable[[str, int, int], None]
 
 
+async def embed_pending_chunks(db: Any, document_id: str, batch_size: int = 16) -> int:
+    """Embed all NULL-embedding chunks for a document using the configured provider.
+
+    Args:
+        db: A connected Prisma client instance.
+        document_id: UUID string of the document whose chunks need embedding.
+        batch_size: Number of chunks to process per batch.
+
+    Returns:
+        Number of chunks embedded.
+    """
+    from officeplane.memory.embedding_provider import get_embedding_provider
+
+    try:
+        provider = get_embedding_provider()
+    except Exception as exc:
+        log.warning("Embedding provider unavailable — skipping chunk embedding: %s", exc)
+        return 0
+
+    inserted = 0
+    while True:
+        rows = await db.query_raw(
+            "SELECT id, text FROM chunks WHERE document_id = $1::uuid AND embedding IS NULL LIMIT $2",
+            document_id,
+            batch_size,
+        )
+        if not rows:
+            break
+        texts = [r["text"] for r in rows]
+        try:
+            embeddings = await provider.embed_batch(texts)
+        except Exception as exc:
+            log.warning("embed_batch failed for document %s: %s", document_id, exc)
+            break
+        for r, emb in zip(rows, embeddings):
+            vec_str = "[" + ",".join(f"{x:.7f}" for x in emb) + "]"
+            await db.execute_raw(
+                "UPDATE chunks SET embedding = $1::vector WHERE id = $2::uuid",
+                vec_str,
+                r["id"],
+            )
+            inserted += 1
+    if inserted:
+        log.info("Embedded %d chunks for document %s", inserted, document_id)
+    return inserted
+
+
 @dataclass
 class IngestionResult:
     """Result of document ingestion.
@@ -789,7 +836,8 @@ class VisionIngestionService:
             key_entities=document.key_entities,
         )
 
-        # Create chapters, sections, and pages
+        # Create chapters, sections, and pages; also insert page-level chunks for RAG.
+        page_chunk_rows: list[dict] = []  # collect (document_id, chapter_id, section_id, page_id, text)
         for chapter in document.chapters:
             db_chapter = await self._doc_store.create_chapter(
                 document_id=db_doc.id,
@@ -807,13 +855,70 @@ class VisionIngestionService:
                 )
 
                 for page in section.pages:
-                    await self._doc_store.create_page(
+                    db_page = await self._doc_store.create_page(
                         section_id=db_section.id,
                         content=page.content,
                         page_number=page.page_number,
                     )
+                    if page.content and page.content.strip():
+                        page_chunk_rows.append({
+                            "document_id": str(db_doc.id),
+                            "chapter_id": str(db_chapter.id),
+                            "section_id": str(db_section.id),
+                            "page_id": str(db_page.id) if db_page else None,
+                            "text": page.content,
+                        })
+
+        # Insert page-level chunks (without embeddings — embeddings are filled later).
+        if page_chunk_rows:
+            await self._insert_page_chunks(page_chunk_rows)
+
+        # Embed all newly inserted chunks asynchronously.
+        try:
+            from prisma import Prisma
+            db = Prisma()
+            await db.connect()
+            try:
+                n = await embed_pending_chunks(db, str(db_doc.id))
+                if n:
+                    log.info("Embedded %d chunks for new document %s", n, db_doc.id)
+            finally:
+                await db.disconnect()
+        except Exception as exc:
+            log.warning("Post-ingestion embedding step failed (non-fatal): %s", exc)
 
         return await self._doc_store.get_document(db_doc.id, load_children=True)
+
+    async def _insert_page_chunks(self, rows: list[dict]) -> None:
+        """Insert page-level chunk records (no embedding) using raw asyncpg."""
+        import os
+        import asyncpg
+
+        database_url = os.getenv(
+            "DATABASE_URL", "postgresql://officeplane:officeplane@db:5432/officeplane"
+        )
+        conn = await asyncpg.connect(database_url)
+        try:
+            for r in rows:
+                text = r["text"]
+                await conn.execute(
+                    """
+                    INSERT INTO chunks
+                        (document_id, chapter_id, section_id, page_id, text,
+                         start_offset, end_offset, token_count)
+                    VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, 0, $6, 0)
+                    """,
+                    r["document_id"],
+                    r["chapter_id"],
+                    r["section_id"],
+                    r["page_id"],
+                    text,
+                    len(text),
+                )
+        except Exception as exc:
+            log.warning("Chunk insertion failed (non-fatal): %s", exc)
+        finally:
+            await conn.close()
 
     def _report_progress(
         self,

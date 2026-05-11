@@ -21,14 +21,17 @@ from officeplane.memory.vector_store import (
     SearchResult,
     VectorStore,
 )
-from officeplane.memory.rag import (
-    DocumentIndexer,
-    RAGResult,
-    RAGRetriever,
-    get_indexer,
-    get_retriever,
-    search,
-)
+try:
+    from officeplane.memory.rag import (
+        DocumentIndexer,
+        RAGResult,
+        RAGRetriever,
+        get_indexer,
+        get_retriever,
+        search,
+    )
+except ImportError:
+    pass  # Circular import guard — rag is available when accessed directly
 
 __all__ = [
     # Embeddings

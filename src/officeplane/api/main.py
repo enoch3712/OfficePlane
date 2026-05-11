@@ -16,6 +16,7 @@ from officeplane.api.ecm.search import router as ecm_search_router
 from officeplane.api.ecm.workflows import router as ecm_workflows_router
 from officeplane.api.lineage_routes import router as lineage_router
 from officeplane.api.workspace_routes import router as workspace_router
+from officeplane.api.search_routes import router as search_router
 from officeplane.api.middleware import RequestIdMiddleware
 from officeplane.api.websocket import websocket_endpoint
 from officeplane.observability.logging import configure_logging
@@ -98,6 +99,13 @@ def create_app() -> FastAPI:
     app.include_router(ecm_workflows_router)   # ECM: approval workflows
     app.include_router(lineage_router)         # Lineage / provenance graph
     app.include_router(workspace_router)       # Workspace document JSON
+    app.include_router(search_router)          # Semantic search
+    from officeplane.api.diff_routes import router as diff_router
+    app.include_router(diff_router)            # Revision diff
+    from officeplane.api.categorize_routes import router as categorize_router
+    app.include_router(categorize_router)      # Auto-categorize skill
+    from officeplane.api.signed_download import router as signed_download_router
+    app.include_router(signed_download_router)
 
     # Health check endpoint
     @app.get("/health")

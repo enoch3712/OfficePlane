@@ -150,7 +150,7 @@ model Chunk {
   startOffset Int      @map("start_offset")
   endOffset   Int      @map("end_offset")
   tokenCount  Int      @default(0) @map("token_count")
-  embedding   Unsupported("vector(1536)")?
+  embedding   Unsupported("vector(768)")?
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   // Relations
