@@ -142,3 +142,5 @@ from officeplane.api.analyze_routes import router as analyze_router  # noqa: E40
 app.include_router(analyze_router)
 from officeplane.api.templates_routes import router as templates_router  # noqa: E402
 app.include_router(templates_router)
+from officeplane.api.extract_routes import router as extract_router  # noqa: E402
+app.include_router(extract_router)
