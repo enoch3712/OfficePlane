@@ -330,3 +330,50 @@ export interface LineageResponse {
   revisions: LineageRevision[]
 }
 
+// ─── Agnostic Document Tree ──────────────────────────────────────────────────
+
+export type BlockType =
+  | 'section'
+  | 'heading'
+  | 'paragraph'
+  | 'list'
+  | 'table'
+  | 'figure'
+  | 'code'
+  | 'callout'
+  | 'quote'
+  | 'divider'
+
+export interface DocNode {
+  id: string
+  type: BlockType
+  level?: number
+  heading?: string
+  text?: string
+  variant?: string
+  ordered?: boolean
+  items?: DocNode[]
+  headers?: string[]
+  rows?: string[][]
+  src?: string
+  caption?: string
+  alt?: string
+  prompt?: string
+  lang?: string
+  children?: DocNode[]
+}
+
+export interface AgnosticDocument {
+  type: 'document'
+  schema_version: string
+  meta: { title: string; language?: string; render_hints?: Record<string, unknown> }
+  children: DocNode[]
+  attributions: Array<{
+    node_id: string
+    document_id?: string
+    section_id?: string
+    page_numbers?: number[]
+  }>
+  revision?: number
+}
+
