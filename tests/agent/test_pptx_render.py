@@ -77,6 +77,22 @@ def test_render_pptx_respects_max_slides_cap():
     assert len(pres.slides) <= 5
 
 
+def test_render_pptx_embeds_figure_from_prompt(tmp_path, monkeypatch):
+    monkeypatch.setenv("OFFICEPLANE_IMAGE_PROVIDER", "placeholder")
+    from officeplane.content_agent.renderers.document import parse_document
+    from officeplane.content_agent.renderers.pptx_render import render_pptx
+
+    doc = parse_document({"type": "document", "children": [
+        {"type": "section", "level": 1, "heading": "BP", "children": [
+            {"type": "figure", "id": "f2", "prompt": "labeled blood pressure cuff", "caption": "Fig 1"}
+        ]}
+    ]})
+    blob = render_pptx(doc, workspace_dir=tmp_path)
+    assert isinstance(blob, bytes) and len(blob) > 5000
+    # Confirm the image file was generated
+    assert (tmp_path / "images" / "f2.png").exists()
+
+
 def test_render_pptx_emits_table_slide():
     doc = parse_document(
         {

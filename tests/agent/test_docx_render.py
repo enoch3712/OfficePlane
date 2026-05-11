@@ -77,6 +77,22 @@ def test_render_docx_emits_table():
     assert out.tables[0].rows[1].cells[1].text == "80"
 
 
+def test_render_docx_embeds_figure_from_prompt(tmp_path, monkeypatch):
+    monkeypatch.setenv("OFFICEPLANE_IMAGE_PROVIDER", "placeholder")
+    from officeplane.content_agent.renderers.document import parse_document
+    from officeplane.content_agent.renderers.docx_render import render_docx
+
+    doc = parse_document({"type": "document", "children": [
+        {"type": "section", "level": 1, "heading": "BP", "children": [
+            {"type": "figure", "id": "f1", "prompt": "labeled blood pressure cuff", "caption": "Fig 1"}
+        ]}
+    ]})
+    blob = render_docx(doc, workspace_dir=tmp_path)
+    assert isinstance(blob, bytes) and len(blob) > 5000
+    # Confirm the image file was generated
+    assert (tmp_path / "images" / "f1.png").exists()
+
+
 def test_render_docx_handles_all_block_types_without_crashing():
     """Every block type renders without exception; Figure with no src is skipped."""
     doc = parse_document(

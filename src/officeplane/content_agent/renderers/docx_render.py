@@ -10,12 +10,14 @@ from __future__ import annotations
 import logging
 from io import BytesIO
 from os.path import isfile
+from pathlib import Path
 from typing import Union
 
 from docx import Document as DocxDocument
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
+from officeplane.content_agent.image_embed import resolve_figure_image
 from officeplane.content_agent.renderers.document import (
     Callout,
     Code,
@@ -50,10 +52,10 @@ def _safe_style(doc_obj: DocxDocument, name: str) -> str | None:
         return None
 
 
-def _render_node(doc_obj: DocxDocument, node: _Node) -> None:
+def _render_node(doc_obj: DocxDocument, node: _Node, workspace_dir: Path) -> None:
     """Dispatch a single node to its specialised render function."""
     if isinstance(node, Section):
-        _render_section(doc_obj, node)
+        _render_section(doc_obj, node, workspace_dir)
     elif isinstance(node, Heading):
         doc_obj.add_heading(node.text, level=min(node.level, 9))
     elif isinstance(node, Paragraph):
@@ -63,7 +65,7 @@ def _render_node(doc_obj: DocxDocument, node: _Node) -> None:
     elif isinstance(node, Table):
         _render_table(doc_obj, node)
     elif isinstance(node, Figure):
-        _render_figure(doc_obj, node)
+        _render_figure(doc_obj, node, workspace_dir)
     elif isinstance(node, Code):
         _render_code(doc_obj, node)
     elif isinstance(node, Callout):
@@ -76,12 +78,12 @@ def _render_node(doc_obj: DocxDocument, node: _Node) -> None:
         logger.warning("docx_render: unknown node type %s — skipped", type(node).__name__)
 
 
-def _render_section(doc_obj: DocxDocument, section: Section) -> None:
+def _render_section(doc_obj: DocxDocument, section: Section, workspace_dir: Path) -> None:
     """Emit a heading for the section then recurse into its children."""
     if section.heading:
         doc_obj.add_heading(section.heading, level=min(section.level, 9))
     for child in section.children:
-        _render_node(doc_obj, child)
+        _render_node(doc_obj, child, workspace_dir)
 
 
 def _render_list(doc_obj: DocxDocument, lst: List) -> None:
@@ -116,26 +118,25 @@ def _render_table(doc_obj: DocxDocument, table: Table) -> None:
                 data_cells[col_idx].text = cell_text
 
 
-def _render_figure(doc_obj: DocxDocument, figure: Figure) -> None:
-    """Embed a figure if src points to an existing file; silently skip otherwise."""
-    src = figure.src
-    if not src or not isfile(src):
-        # Missing or absent — skip gracefully (Task 8 image_embed will fill src)
-        logger.debug("docx_render: figure %s skipped — src absent or file missing", figure.id)
+def _render_figure(doc_obj: DocxDocument, figure: Figure, workspace_dir: Path) -> None:
+    """Embed a figure — resolves image via src file or prompt-based generation."""
+    img_path = resolve_figure_image(figure, workspace_dir)
+    if img_path is None or not img_path.exists():
+        logger.debug("docx_render: figure %s skipped — no image resolved", figure.id)
         return
 
     try:
-        doc_obj.add_picture(src, width=Inches(5))
+        doc_obj.add_picture(str(img_path), width=Inches(5))
     except Exception:
         logger.warning(
-            "docx_render: could not embed figure %s from %s", figure.id, src, exc_info=True
+            "docx_render: could not embed figure %s from %s", figure.id, img_path, exc_info=True
         )
         return
 
     if figure.caption:
-        p = doc_obj.add_paragraph()
-        r = p.add_run(figure.caption)
-        r.italic = True
+        cap_para = doc_obj.add_paragraph()
+        cap_run = cap_para.add_run(figure.caption)
+        cap_run.italic = True
 
 
 def _render_code(doc_obj: DocxDocument, code: Code) -> None:
@@ -178,7 +179,7 @@ def _render_quote(doc_obj: DocxDocument, quote: Quote) -> None:
 # ---------------------------------------------------------------------------
 
 
-def render_docx(doc: Document) -> bytes:
+def render_docx(doc: Document, *, workspace_dir: Path | None = None) -> bytes:
     """Render the agnostic Document tree to .docx bytes via python-docx.
 
     Opens a fresh :class:`~docx.Document`, writes the document title (if
@@ -186,7 +187,14 @@ def render_docx(doc: Document) -> bytes:
     ``doc.children`` depth-first dispatching each node to the appropriate
     render helper.  The result is serialised to a :class:`~io.BytesIO` buffer
     and returned as raw bytes.
+
+    Args:
+        doc: The agnostic Document tree to render.
+        workspace_dir: Optional directory for generated image output.  If
+            omitted, ``/tmp`` is used so Figure blocks with a ``prompt`` can
+            still produce images without a real workspace path.
     """
+    ws = workspace_dir if workspace_dir is not None else Path("/tmp")
     doc_obj = DocxDocument()
 
     # Document title
@@ -195,7 +203,7 @@ def render_docx(doc: Document) -> bytes:
 
     # Walk children
     for node in doc.children:
-        _render_node(doc_obj, node)
+        _render_node(doc_obj, node, ws)
 
     buf = BytesIO()
     doc_obj.save(buf)

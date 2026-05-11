@@ -30,6 +30,7 @@ from __future__ import annotations
 import logging
 from io import BytesIO
 from os.path import isfile
+from pathlib import Path
 from typing import Any
 
 from pptx import Presentation
@@ -37,6 +38,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN  # noqa: F401 — imported for future use
 from pptx.util import Inches, Pt
 
+from officeplane.content_agent.image_embed import resolve_figure_image
 from officeplane.content_agent.renderers.document import (
     Block,
     Callout,
@@ -397,7 +399,7 @@ def _add_table_slide(prs: Presentation, spec: SlideSpec) -> None:
                 pptx_table.cell(row_idx + 1, col_idx).text = cell_text
 
 
-def _add_figure_slide(prs: Presentation, spec: SlideSpec) -> None:
+def _add_figure_slide(prs: Presentation, spec: SlideSpec, workspace_dir: Path) -> None:
     layout = _safe_layout(prs, _LAYOUT_TITLE_CONTENT)
     slide = prs.slides.add_slide(layout)
     figure: Figure = spec["figure"]
@@ -405,18 +407,18 @@ def _add_figure_slide(prs: Presentation, spec: SlideSpec) -> None:
     if slide.shapes.title:
         slide.shapes.title.text = spec.get("heading", "")
 
-    src = figure.src
-    if src and isfile(src):
+    img_path = resolve_figure_image(figure, workspace_dir)
+    if img_path and img_path.exists():
         try:
             left = Inches(1.5)
             top = Inches(1.5)
             width = Inches(10.0)
-            slide.shapes.add_picture(src, left, top, width=width)
+            slide.shapes.add_picture(str(img_path), left, top, width=width)
         except Exception:
             logger.warning(
                 "pptx_render: could not embed figure %s from %s",
                 figure.id,
-                src,
+                img_path,
                 exc_info=True,
             )
 
@@ -455,7 +457,7 @@ def _add_code_slide(prs: Presentation, spec: SlideSpec) -> None:
 # ---------------------------------------------------------------------------
 
 
-def render_pptx(doc: Document) -> bytes:
+def render_pptx(doc: Document, *, workspace_dir: Path | None = None) -> bytes:
     """Render the agnostic Document tree to .pptx bytes via python-pptx.
 
     Opens a fresh :class:`~pptx.Presentation` (16:9 widescreen), collects a
@@ -463,7 +465,14 @@ def render_pptx(doc: Document) -> bytes:
     in order.  If ``doc.meta.render_hints`` contains a ``max_slides`` key the
     slide list is truncated to that count.  The result is serialised to a
     :class:`~io.BytesIO` buffer and returned as raw bytes.
+
+    Args:
+        doc: The agnostic Document tree to render.
+        workspace_dir: Optional directory for generated image output.  If
+            omitted, ``/tmp`` is used so Figure blocks with a ``prompt`` can
+            still produce images without a real workspace path.
     """
+    ws = workspace_dir if workspace_dir is not None else Path("/tmp")
     prs = Presentation()
     prs.slide_width = _SLIDE_WIDTH
     prs.slide_height = _SLIDE_HEIGHT
@@ -499,7 +508,7 @@ def render_pptx(doc: Document) -> bytes:
         elif kind == _TABLE_SLIDE:
             _add_table_slide(prs, spec)
         elif kind == _FIGURE_SLIDE:
-            _add_figure_slide(prs, spec)
+            _add_figure_slide(prs, spec, ws)
         elif kind == _CODE_SLIDE:
             _add_code_slide(prs, spec)
         else:

@@ -218,16 +218,17 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
     # Force-set the slide cap (LLM may have ignored or set differently)
     doc.meta.render_hints["max_slides"] = slide_count
 
-    pptx_bytes = render_pptx(doc)
+    job_id = str(uuid.uuid4())
+    workspace_root = Path(os.getenv("CONTENT_AGENT_WORKSPACE", "/data/workspaces"))
+    out_dir = workspace_root / job_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    pptx_bytes = render_pptx(doc, workspace_dir=out_dir)
 
     # Count actual slides in the rendered output
     pres = Presentation(io.BytesIO(pptx_bytes))
     actual_slides = len(pres.slides)
 
-    job_id = str(uuid.uuid4())
-    workspace_root = Path(os.getenv("CONTENT_AGENT_WORKSPACE", "/data/workspaces"))
-    out_dir = workspace_root / job_id
-    out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "output.pptx"
     out_path.write_bytes(pptx_bytes)
 

@@ -223,12 +223,14 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
         raise ValueError(f"LLM did not return JSON: {exc}") from exc
 
     doc = parse_document(data)
-    docx_bytes = render_docx(doc)
 
     job_id = str(uuid.uuid4())
     workspace_root = Path(os.getenv("CONTENT_AGENT_WORKSPACE", "/data/workspaces"))
     out_dir = workspace_root / job_id
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    docx_bytes = render_docx(doc, workspace_dir=out_dir)
+
     out_path = out_dir / "output.docx"
     out_path.write_bytes(docx_bytes)
 
