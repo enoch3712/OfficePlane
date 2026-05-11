@@ -47,6 +47,7 @@ model Document {
   tasks       Task[]
   history     ExecutionHistory[]
   collections DocumentCollection[]
+  derivations Derivation[]
 
   @@map("documents")
 }
@@ -370,4 +371,76 @@ model TaskRetry {
   @@index([taskId], name: "idx_retries_task")
   @@index([startedAt(sort: Desc)], name: "idx_retries_started")
   @@map("task_retries")
+}
+
+// ============================================================
+// PHASE 12.1: PROVENANCE + LINEAGE
+// ============================================================
+
+model Derivation {
+  id               String   @id @default(uuid()) @db.Uuid
+  // Output side — which node in which generated workspace
+  workspaceId      String   @map("workspace_id") @db.Uuid
+  generatedNodeId  String   @map("generated_node_id")
+  generatedDocPath String?  @map("generated_doc_path")
+  // Source side
+  sourceDocumentId String?  @map("source_document_id") @db.Uuid
+  sourceChapterId  String?  @map("source_chapter_id") @db.Uuid
+  sourceSectionId  String?  @map("source_section_id") @db.Uuid
+  pageNumbers      Int[]    @default([]) @map("page_numbers")
+  textExcerpt      String?  @map("text_excerpt")
+  // Activity (PROV-O)
+  skill            String
+  model            String
+  promptHash       String?  @map("prompt_hash")
+  confidence       Float?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  sourceDocument   Document? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId], name: "idx_derivation_workspace")
+  @@index([generatedNodeId], name: "idx_derivation_node")
+  @@index([sourceDocumentId], name: "idx_derivation_source_doc")
+  @@map("derivations")
+}
+
+model DocumentRevision {
+  id               String   @id @default(uuid()) @db.Uuid
+  workspaceId      String   @map("workspace_id") @db.Uuid
+  parentRevisionId String?  @map("parent_revision_id") @db.Uuid
+  revisionNumber   Int      @map("revision_number")
+  op               String
+  payload          Json     @default("{}")
+  actor            String?
+  snapshotPath     String?  @map("snapshot_path")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  parent   DocumentRevision?  @relation("RevisionParent", fields: [parentRevisionId], references: [id], onDelete: SetNull)
+  children DocumentRevision[] @relation("RevisionParent")
+
+  @@unique([workspaceId, revisionNumber], name: "uq_revision_workspace_n")
+  @@index([workspaceId], name: "idx_revision_workspace")
+  @@index([parentRevisionId], name: "idx_revision_parent")
+  @@map("document_revisions")
+}
+
+model SkillInvocation {
+  id               String   @id @default(uuid()) @db.Uuid
+  skill            String
+  model            String?
+  workspaceId      String?  @map("workspace_id") @db.Uuid
+  inputs           Json     @default("{}")
+  outputs          Json     @default("{}")
+  status           String
+  errorMessage     String?  @map("error_message")
+  actor            String?
+  startedAt        DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  durationMs       Int?     @map("duration_ms")
+  promptTokens     Int?     @map("prompt_tokens")
+  completionTokens Int?     @map("completion_tokens")
+
+  @@index([skill], name: "idx_skill_inv_name")
+  @@index([workspaceId], name: "idx_skill_inv_workspace")
+  @@index([startedAt], name: "idx_skill_inv_started")
+  @@map("skill_invocations")
 }
