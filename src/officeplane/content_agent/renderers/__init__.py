@@ -1,1 +1,1 @@
-"""Renderers — convert typed BlocksDocument to binary formats (.docx, .pptx)."""
+"""Renderers — convert the agnostic Document tree to binary formats (.docx, .pptx)."""
