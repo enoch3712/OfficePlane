@@ -49,4 +49,8 @@ node_modules
 
 # Next.js
 ui/.next/
+ui/tsconfig.tsbuildinfo
 cache/
+
+# Claude Code state
+.claude/scheduled_tasks.lock
