@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Activity,
   Settings,
-  Layers,
   Clock,
   MessageSquare,
   Sparkles,
@@ -26,7 +25,6 @@ const navigation = [
   { name: 'Source Trail', href: '/lineage', icon: GitBranch },
   { name: 'Teams', href: '/teams', icon: Users },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
-  { name: 'Instances', href: '/instances', icon: Layers },
   { name: 'Task Queue', href: '/tasks', icon: Clock },
   { name: 'Activity', href: '/activity', icon: Activity },
 ]

@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { MetricsPanel } from '@/components/MetricsPanel'
-import { InstancesPanel } from '@/components/InstancesPanel'
 import { TaskQueuePanel } from '@/components/TaskQueuePanel'
 import { HistoryPanel } from '@/components/HistoryPanel'
 import { FileUploadDialog } from '@/components/FileUploadDialog'
@@ -104,10 +103,7 @@ export default function Dashboard() {
       <div className="space-y-6">
         <MetricsPanel />
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <InstancesPanel />
-          <TaskQueuePanel />
-        </div>
+        <TaskQueuePanel />
 
         <HistoryPanel recentEvents={events} />
       </div>
