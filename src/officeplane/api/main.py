@@ -158,3 +158,5 @@ from officeplane.events.dispatcher import register_dispatcher  # noqa: E402
 register_dispatcher()
 from officeplane.api.retention_routes import router as retention_router  # noqa: E402
 app.include_router(retention_router)
+from officeplane.api.pii_routes import router as pii_router  # noqa: E402
+app.include_router(pii_router)
