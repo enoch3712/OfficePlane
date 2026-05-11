@@ -2,17 +2,12 @@ FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# System deps + LibreOffice + Python
+# System deps + Python (LibreOffice removed — DOCX→PDF now goes through Gotenberg)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libreoffice \
-    libreoffice-impress \
-    libreoffice-writer \
-    libreoffice-calc \
     python3 \
     python3-pip \
     python3-venv \
     python3-dev \
-    python3-uno \
     python3-cairo \
     ca-certificates \
     fontconfig \
@@ -45,14 +40,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto fonts-roboto fonts-open-sans fonts-lato \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create venv with system-site-packages for uno access
-RUN python3 -m venv --system-site-packages /opt/venv
+# Create venv
+RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install runtime deps
 RUN pip install --no-cache-dir \
   fastapi uvicorn[standard] python-multipart pymupdf prometheus-client ujson \
-  unoserver "redis[hiredis]>=5.0.0"
+  httpx "redis[hiredis]>=5.0.0"
 
 # Content agent deps
 RUN pip install --no-cache-dir --default-timeout=600 --retries=5 \
@@ -83,9 +78,6 @@ RUN python -m prisma generate
 EXPOSE 8001
 ENV DATA_DIR=/data
 ENV OUTPUT_MODE=inline
-ENV OFFICEPLANE_DRIVER=libreoffice
-ENV POOL_SIZE=6
-ENV CONVERT_TIMEOUT_SEC=45
 ENV LOG_FORMAT=json
 
 CMD ["uvicorn", "officeplane.api.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1", "--loop", "uvloop"]

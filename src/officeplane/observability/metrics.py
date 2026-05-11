@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Histogram
 
 REQUESTS = Counter(
     "officeplane_requests_total",
@@ -25,15 +25,4 @@ RENDER_SECONDS = Histogram(
 TOTAL_SECONDS = Histogram(
     "officeplane_total_duration_seconds",
     "Total request duration",
-)
-
-POOL_READY = Gauge(
-    "officeplane_pool_ready",
-    "Number of LibreOffice instances ready",
-)
-
-INSTANCE_RESTARTS = Counter(
-    "officeplane_instance_restarts_total",
-    "LibreOffice instance restarts",
-    ["port"],
 )

@@ -1,15 +1,16 @@
-"""PDF renderer — Document → DOCX → libreoffice → PDF bytes.
+"""PDF renderer — Document tree → DOCX bytes → Gotenberg → PDF bytes.
 
-Reuses the existing libreoffice install already in the api image (no new pip deps).
-For deterministic output across machines, callers should pass a workspace_dir so
-embedded figures resolve consistently.
+Uses Gotenberg's HTTP API for the DOCX→PDF step (Gotenberg internally wraps
+LibreOffice, so output fidelity is identical to subprocess shell-out but the
+call is async, non-blocking, and runs in its own container).
 """
 from __future__ import annotations
 
 import logging
-import subprocess
-import tempfile
+import os
 from pathlib import Path
+
+import httpx
 
 from officeplane.content_agent.renderers.document import Document
 from officeplane.content_agent.renderers.docx_render import render_docx
@@ -17,56 +18,29 @@ from officeplane.content_agent.renderers.docx_render import render_docx
 log = logging.getLogger("officeplane.renderers.pdf")
 
 
+GOTENBERG_URL = os.getenv("GOTENBERG_URL") or "http://gotenberg:3000"
+CONVERT_PATH = "/forms/libreoffice/convert"
+
+
 def render_pdf(doc: Document, *, workspace_dir: Path | None = None, timeout: int = 120) -> bytes:
-    """Render the agnostic Document tree to PDF bytes via libreoffice.
-
-    Converts the Document tree to DOCX bytes first using :func:`render_docx`,
-    then shells out to libreoffice in headless mode to convert the DOCX to PDF.
-    The PDF bytes are returned and the temporary directory is cleaned up.
-
-    Args:
-        doc: The agnostic Document tree to render.
-        workspace_dir: Optional directory for generated image output.  If
-            omitted, ``/tmp`` is used so Figure blocks with a ``prompt`` can
-            still produce images without a real workspace path.
-        timeout: Seconds to allow libreoffice to complete conversion.
-            Defaults to 120.
-
-    Returns:
-        Raw PDF bytes (starts with ``%PDF``).
-
-    Raises:
-        RuntimeError: If libreoffice fails, times out, or produces no output.
-    """
+    """Render Document → DOCX → Gotenberg → PDF bytes."""
     docx_bytes = render_docx(doc, workspace_dir=workspace_dir)
-    with tempfile.TemporaryDirectory(prefix="op_pdf_") as tmpdir:
-        tmp = Path(tmpdir)
-        docx_path = tmp / "doc.docx"
-        docx_path.write_bytes(docx_bytes)
-        try:
-            result = subprocess.run(
-                [
-                    "libreoffice", "--headless", "--norestore", "--nofirststartwizard",
-                    "--convert-to", "pdf", "--outdir", str(tmp), str(docx_path),
-                ],
-                capture_output=True, timeout=timeout,
-            )
-        except subprocess.TimeoutExpired as e:
-            raise RuntimeError(f"libreoffice timed out after {timeout}s") from e
-        if result.returncode != 0:
-            raise RuntimeError(
-                "libreoffice PDF conversion failed: "
-                + result.stderr.decode("utf-8", errors="ignore")[:500]
-            )
-        pdf_path = tmp / "doc.pdf"
-        if not pdf_path.exists():
-            raise RuntimeError(
-                "libreoffice exited 0 but did not produce doc.pdf "
-                + f"(stderr: {result.stderr.decode('utf-8', errors='ignore')[:200]})"
-            )
-        data = pdf_path.read_bytes()
-        # Sanity check: PDF magic bytes
-        if not data.startswith(b"%PDF"):
-            raise RuntimeError("output is not a valid PDF (missing %PDF header)")
-        log.info("render_pdf: produced %d bytes for doc '%s'", len(data), doc.meta.title)
-        return data
+    files = {"files": ("doc.docx", docx_bytes,
+                       "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(f"{GOTENBERG_URL}{CONVERT_PATH}", files=files)
+    except httpx.RequestError as e:
+        raise RuntimeError(
+            f"Gotenberg unreachable at {GOTENBERG_URL}: {e}. "
+            f"Is the gotenberg container running?"
+        ) from e
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"Gotenberg conversion failed: {resp.status_code} {resp.text[:300]}"
+        )
+    data = resp.content
+    if not data.startswith(b"%PDF"):
+        raise RuntimeError("Gotenberg response is not a PDF (missing %PDF header)")
+    log.info("render_pdf: produced %d bytes for doc '%s'", len(data), doc.meta.title)
+    return data

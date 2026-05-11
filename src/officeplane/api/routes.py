@@ -13,9 +13,10 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from officeplane.core.limits import validate_upload, validate_dpi, DEFAULT_DPI
 from officeplane.core.checksums import sha256_bytes
 from officeplane.core.render import pdf_to_images, page_images_to_payload
-from officeplane.core.versions import libreoffice_version, officeplane_version
+from officeplane.core.versions import officeplane_version
 from officeplane.observability.metrics import REQUESTS, FAILURES, CONVERT_SECONDS, RENDER_SECONDS
 from officeplane.storage.local import LocalArtifactStore
+from officeplane.drivers.mock_driver import MockDriver
 from officeplane.drivers.base import OfficeDriver
 
 log = logging.getLogger("officeplane.api")
@@ -27,44 +28,13 @@ _default_data_dir = "/data" if os.path.isdir("/data") else tempfile.mkdtemp(pref
 DATA_DIR = os.getenv("DATA_DIR", _default_data_dir)
 store = LocalArtifactStore(DATA_DIR)
 
-DRIVER = os.getenv("OFFICEPLANE_DRIVER", "libreoffice").lower()
+# Mock driver used for the legacy /render endpoint (DOCX→image pipeline)
+driver: OfficeDriver = MockDriver()
 
-driver: OfficeDriver
-driver_status: Optional[Callable[[], dict]] = None
-
-if DRIVER == "mock":
-    from officeplane.drivers.mock_driver import MockDriver
-    driver = MockDriver()
-elif DRIVER == "rust":
-    # High-performance Rust native driver
-    from officeplane.drivers.rust_driver import RustDriver, is_available
-    if not is_available():
-        log.warning("Rust driver requested but not available, falling back to libreoffice")
-        from officeplane.drivers.libreoffice_driver import LibreOfficeDriver
-        _lo_driver = LibreOfficeDriver()
-        driver = _lo_driver
-        driver_status = _lo_driver.status
-        _lo_driver.warmup()
-        DRIVER = "libreoffice"  # Update for health endpoint
-    else:
-        _rust_driver = RustDriver()
-        driver = _rust_driver
-        driver_status = _rust_driver.status
-        _rust_driver.warmup()
-else:
-    # Default: Python LibreOffice driver
-    from officeplane.drivers.libreoffice_driver import LibreOfficeDriver
-    _lo_driver = LibreOfficeDriver()
-    driver = _lo_driver
-    driver_status = _lo_driver.status
-    _lo_driver.warmup()
 
 @router.get("/health")
 async def health():
-    payload = {"status": "ok", "driver": DRIVER}
-    if driver_status:
-        payload["pool"] = driver_status()
-    return payload
+    return {"status": "ok"}
 
 @router.get("/metrics")
 async def metrics():
@@ -137,8 +107,6 @@ async def render(
             "timings_ms": {"convert": convert_ms, "render": render_ms, "total": total_ms},
             "versions": {
                 "officeplane": officeplane_version(),
-                "libreoffice": libreoffice_version(),
-                "driver": DRIVER,
             },
             "extra": {},
         }

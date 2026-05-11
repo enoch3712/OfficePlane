@@ -33,6 +33,21 @@ services:
       timeout: 3s
       retries: 5
 
+  # Document conversion — DOCX/HTML/MD → PDF, plus merge/split/watermark
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: officeplane-gotenberg
+    restart: unless-stopped
+    # Not exposed to the host — only api talks to it
+    expose:
+      - "3000"
+    # Reasonable defaults; tighten if needed
+    command:
+      - gotenberg
+      - --api-port=3000
+      - --api-timeout=60s
+      - --libreoffice-restart-after=20
+
   # FastAPI Backend
   api:
     build:
@@ -42,7 +57,6 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - OFFICEPLANE_DRIVER=libreoffice
       - DATABASE_URL=postgresql://officeplane:officeplane@db:5432/officeplane
       - OFFICEPLANE_BROKER=${OFFICEPLANE_BROKER:-memory}
       - REDIS_URL=redis://redis:6379/0
@@ -59,9 +73,12 @@ services:
       - CONTENT_AGENT_MODEL=${CONTENT_AGENT_MODEL:-deepseek/deepseek-v4-flash}
       - CONTENT_AGENT_TIMEOUT=${CONTENT_AGENT_TIMEOUT:-600}
       - CONTENT_AGENT_WORKSPACE=/data/workspaces
+      - GOTENBERG_URL=${GOTENBERG_URL:-http://gotenberg:3000}
     depends_on:
       db:
         condition: service_healthy
+      gotenberg:
+        condition: service_started
       # redis dependency only needed when OFFICEPLANE_BROKER=redis
       # redis:
       #   condition: service_healthy

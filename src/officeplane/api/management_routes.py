@@ -18,7 +18,7 @@ from ..documents.models import DocumentModel
 from ..documents.store import DocumentStore
 from ..ingestion.config import IngestionConfig
 from ..ingestion.format_detector import DocumentFormat, detect_format
-# VisionIngestionService and LibreOfficeDriver are imported lazily to avoid requiring PIL at startup
+# VisionIngestionService is imported lazily to avoid requiring PIL at startup
 from ..components.planning.generator import PlanGenerator, MockPlanLLM, GeminiPlanAdapter
 from ..components.planning.models import GeneratePlanInput, PlanSummary, ActionPlan, ActionNode
 from ..components.planning.display import PlanDisplayer
@@ -371,7 +371,6 @@ async def _ingest_uploaded_file(
     try:
         # Lazy import to avoid requiring PIL at startup
         from ..ingestion.ingestion_service import VisionIngestionService
-        from ..drivers.libreoffice_driver import LibreOfficeDriver
 
         ingestion_config = IngestionConfig()
         try:
@@ -379,16 +378,8 @@ async def _ingest_uploaded_file(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        # Use LibreOffice driver for DOCX/DOC/PPTX/PPT->PDF conversion
-        driver = LibreOfficeDriver() if doc_format in (
-            DocumentFormat.DOC,
-            DocumentFormat.DOCX,
-            DocumentFormat.PPTX,
-            DocumentFormat.PPT,
-        ) else None
-
         ingestion_service = VisionIngestionService(
-            driver=driver,
+            driver=None,
             doc_store=doc_store,
             config=ingestion_config,
         )
