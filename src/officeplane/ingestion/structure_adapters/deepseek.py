@@ -89,7 +89,8 @@ class DeepSeekStructureAdapter:
     def _format_pages(self, pages: list[dict], *, filename: Optional[str]) -> str:
         header = f"Document: {filename}\n\n" if filename else ""
         body = "\n\n".join(
-            f"--- PAGE {p['page_number']} ---\n{p.get('text', '')}".strip()
+            # Support both "text" (legacy extractors) and "content" (OCR-aware extractor)
+            f"--- PAGE {p['page_number']} ---\n{p.get('content') or p.get('text', '')}".strip()
             for p in pages
         )
         return header + body

@@ -18,6 +18,9 @@ class DocumentFormat(Enum):
     XLS = "xls"
     PPTX = "pptx"
     PPT = "ppt"
+    PNG = "png"
+    JPEG = "jpeg"
+    TIFF = "tiff"
     UNKNOWN = "unknown"
 
 
@@ -30,6 +33,12 @@ _ZIP_MAGIC = b"PK\x03\x04"
 
 # Old Office formats (DOC, XLS, PPT) use OLE/Compound File Binary Format
 _OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+# Image format magic bytes
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_JPEG_MAGIC = b"\xff\xd8\xff"
+_TIFF_MAGIC_LE = b"II*\x00"   # little-endian TIFF
+_TIFF_MAGIC_BE = b"MM\x00*"   # big-endian TIFF
 
 
 def detect_format(data: bytes, filename: Optional[str] = None) -> DocumentFormat:
@@ -59,6 +68,14 @@ def detect_format(data: bytes, filename: Optional[str] = None) -> DocumentFormat
     # Check OLE-based formats (old Office)
     if data[:8] == _OLE_MAGIC:
         return _detect_ole_format(data, filename)
+
+    # Check image formats
+    if data[:8] == _PNG_MAGIC:
+        return DocumentFormat.PNG
+    if data[:3] == _JPEG_MAGIC:
+        return DocumentFormat.JPEG
+    if data[:4] in (_TIFF_MAGIC_LE, _TIFF_MAGIC_BE):
+        return DocumentFormat.TIFF
 
     return DocumentFormat.UNKNOWN
 
@@ -154,6 +171,11 @@ def _format_from_extension(filename: str) -> DocumentFormat:
         "xls": DocumentFormat.XLS,
         "pptx": DocumentFormat.PPTX,
         "ppt": DocumentFormat.PPT,
+        "png": DocumentFormat.PNG,
+        "jpg": DocumentFormat.JPEG,
+        "jpeg": DocumentFormat.JPEG,
+        "tiff": DocumentFormat.TIFF,
+        "tif": DocumentFormat.TIFF,
     }
 
     return extension_map.get(ext, DocumentFormat.UNKNOWN)
@@ -190,6 +212,20 @@ def is_office_document(data: bytes, filename: Optional[str] = None) -> bool:
         DocumentFormat.PPTX,
         DocumentFormat.PPT,
     )
+
+
+def is_image(data: bytes, filename: Optional[str] = None) -> bool:
+    """Check if data is an image file (PNG, JPEG, or TIFF).
+
+    Args:
+        data: File content bytes.
+        filename: Optional filename for additional context.
+
+    Returns:
+        True if the data is a supported image format.
+    """
+    fmt = detect_format(data, filename)
+    return fmt in (DocumentFormat.PNG, DocumentFormat.JPEG, DocumentFormat.TIFF)
 
 
 def needs_conversion(data: bytes, filename: Optional[str] = None) -> bool:

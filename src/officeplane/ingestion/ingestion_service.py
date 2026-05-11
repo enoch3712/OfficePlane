@@ -395,7 +395,8 @@ class VisionIngestionService:
             log.error(f"DeepSeek structuring failed for {filename}: {e}")
             return IngestionResult(success=False, error=f"Structuring failed: {e}")
 
-        page_contents = {p["page_number"]: p["text"] for p in pages}
+        # Support both "text" (legacy extractors) and "content" (OCR-aware pdf extractor)
+        page_contents = {p["page_number"]: p.get("content") or p.get("text", "") for p in pages}
 
         self._report_progress(progress_callback, "parsing_structure", 0, 1)
         parser = StructureParser(document_id=document_id)

@@ -24,6 +24,8 @@ dependencies = [
   # Vision-based ingestion
   "google-generativeai>=0.7.0",
   "Pillow>=10.0.0",
+  # OCR for scanned PDFs and image uploads (requires tesseract-ocr system package)
+  "pytesseract>=0.3",
   # RAG & Embeddings
   "openai>=1.0.0",
   # WebSockets

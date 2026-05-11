@@ -1,11 +1,15 @@
-"""Per-format text extraction (no OCR)."""
+"""Per-format text extraction (no OCR for office formats; OCR for image/scanned formats)."""
 from __future__ import annotations
 
 from officeplane.ingestion.format_detector import DocumentFormat
 from officeplane.ingestion.text_extractors.docx import extract_docx_text
+from officeplane.ingestion.text_extractors.image import extract_image_text
 from officeplane.ingestion.text_extractors.pdf import extract_pdf_text
 from officeplane.ingestion.text_extractors.pptx import extract_pptx_text
 from officeplane.ingestion.text_extractors.xlsx import extract_xlsx_text
+
+# Image formats that are handled by the OCR-based image extractor
+_IMAGE_FORMATS = {DocumentFormat.PNG, DocumentFormat.JPEG, DocumentFormat.TIFF}
 
 
 def extract_text(data: bytes, doc_format: DocumentFormat) -> list[dict]:
@@ -17,6 +21,8 @@ def extract_text(data: bytes, doc_format: DocumentFormat) -> list[dict]:
         return extract_pptx_text(data)
     if doc_format in (DocumentFormat.XLSX, DocumentFormat.XLS):
         return extract_xlsx_text(data)
+    if doc_format in _IMAGE_FORMATS:
+        return extract_image_text(data)
     raise ValueError(f"unsupported format for text extraction: {doc_format}")
 
 
@@ -26,4 +32,5 @@ __all__ = [
     "extract_docx_text",
     "extract_pptx_text",
     "extract_xlsx_text",
+    "extract_image_text",
 ]

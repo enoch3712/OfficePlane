@@ -326,7 +326,13 @@ _ALLOWED_FORMATS = {
     DocumentFormat.PPT,
     DocumentFormat.XLSX,
     DocumentFormat.XLS,
+    # Image formats — OCR-extracted
+    DocumentFormat.PNG,
+    DocumentFormat.JPEG,
+    DocumentFormat.TIFF,
 }
+
+_IMAGE_FORMATS = {DocumentFormat.PNG, DocumentFormat.JPEG, DocumentFormat.TIFF}
 
 
 async def _ingest_uploaded_file(
@@ -352,8 +358,8 @@ async def _ingest_uploaded_file(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Only .doc, .docx, .pdf, .ppt, .pptx, .xls, and .xlsx files are supported "
-                f"(detected: {doc_format.value})"
+                "Only .doc, .docx, .pdf, .ppt, .pptx, .xls, .xlsx, .png, .jpg, .jpeg, "
+                f"and .tiff files are supported (detected: {doc_format.value})"
             ),
         )
 
@@ -522,12 +528,18 @@ async def upload_document(
     Returns the document with its full structure.
 
     Pass ?collection_id=<id> to automatically link the new document to a collection.
+
+    If the uploaded file is a scanned PDF or an image, OCR is used to extract text.
+    In that case the response includes an ``X-OCR-Used: true`` warning header.
     """
+    import json as _json
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
 
     try:
         contents = await file.read()
+        doc_fmt = detect_format(contents, file.filename)
         doc = await _ingest_uploaded_file(
             contents=contents,
             filename=file.filename,
@@ -536,7 +548,19 @@ async def upload_document(
         )
         if collection_id:
             await _link_document_to_collection(doc["id"], collection_id)
-        return doc
+
+        # Emit warning header when text came via OCR
+        ocr_used = doc_fmt in _IMAGE_FORMATS
+        headers: Dict[str, str] = {}
+        if ocr_used:
+            headers["X-OCR-Used"] = "true"
+            headers["X-OCR-Format"] = doc_fmt.value
+
+        return Response(
+            content=_json.dumps(doc),
+            media_type="application/json",
+            headers=headers,
+        )
 
     except HTTPException:
         raise
