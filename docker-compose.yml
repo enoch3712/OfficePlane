@@ -77,7 +77,7 @@ services:
       dockerfile: ui/Dockerfile
     container_name: officeplane-ui
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - DATABASE_URL=postgresql://officeplane:officeplane@db:5432/officeplane
       - NEXT_PUBLIC_API_URL=http://localhost:8001
