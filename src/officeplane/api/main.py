@@ -136,3 +136,5 @@ from officeplane.api.rewrite_routes import router as rewrite_router  # noqa: E40
 app.include_router(rewrite_router)
 from officeplane.api.streaming_routes import router as streaming_router  # noqa: E402
 app.include_router(streaming_router)
+from officeplane.api.activity_routes import router as activity_router  # noqa: E402
+app.include_router(activity_router)

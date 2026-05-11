@@ -98,6 +98,7 @@ export function Editor({ workspaceId }: EditorProps) {
 
         <DocumentTreeView
           document={doc}
+          workspaceId={workspaceId}
           disabled={busy}
           onInsert={(op, anchor, node) =>
             doEdit(

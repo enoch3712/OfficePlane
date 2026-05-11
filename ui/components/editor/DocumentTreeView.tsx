@@ -1,14 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Pencil, Trash2, Check, X } from 'lucide-react'
+import { Pencil, Trash2, Check, X, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InsertNodeMenu } from './InsertNodeMenu'
+import { RewriteDialog } from './RewriteDialog'
 import type { AgnosticDocument, DocNode, BlockType } from '@/lib/types'
 import { cn } from '@/lib/cn'
 
 interface DocumentTreeViewProps {
   document: AgnosticDocument
+  workspaceId?: string
   onInsert: (
     op: 'insert_after' | 'insert_before' | 'insert_as_child',
     anchorId: string,
@@ -24,18 +26,24 @@ interface DocumentTreeViewProps {
 interface NodeRowProps {
   node: DocNode
   depth: number
+  workspaceId?: string
   onInsert: DocumentTreeViewProps['onInsert']
   onReplace: DocumentTreeViewProps['onReplace']
   onDelete: DocumentTreeViewProps['onDelete']
   disabled?: boolean
 }
 
-function NodeRow({ node, depth, onInsert, onReplace, onDelete, disabled }: NodeRowProps) {
+const REWRITABLE_TYPES = new Set(['paragraph', 'heading', 'callout', 'quote', 'code'])
+
+function NodeRow({ node, depth, workspaceId, onInsert, onReplace, onDelete, disabled }: NodeRowProps) {
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(node.text ?? node.heading ?? '')
   const [selected, setSelected] = useState(false)
   const [hovering, setHovering] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [rewriteFor, setRewriteFor] = useState<string | null>(null)
+
+  const canRewrite = REWRITABLE_TYPES.has(node.type) && !!workspaceId
 
   const indentPx = depth * 16
 
@@ -104,6 +112,17 @@ function NodeRow({ node, depth, onInsert, onReplace, onDelete, disabled }: NodeR
               <Pencil className="w-3 h-3" />
             </button>
           )}
+          {canRewrite && (
+            <button
+              type="button"
+              onClick={() => setRewriteFor(node.id)}
+              disabled={disabled}
+              className="p-1 rounded text-muted-foreground hover:text-[#5EFCAB] hover:bg-[#5EFCAB]/10 transition-colors"
+              title="Rewrite with AI"
+            >
+              <Sparkles className="w-3 h-3" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => void handleDelete()}
@@ -114,6 +133,21 @@ function NodeRow({ node, depth, onInsert, onReplace, onDelete, disabled }: NodeR
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
+      )}
+
+      {/* Rewrite Dialog */}
+      {canRewrite && rewriteFor && workspaceId && (
+        <RewriteDialog
+          open={rewriteFor === node.id}
+          onOpenChange={(open) => { if (!open) setRewriteFor(null) }}
+          workspaceId={workspaceId}
+          nodeId={node.id}
+          currentText={node.text ?? node.heading ?? ''}
+          onAccept={async (newNode) => {
+            await onReplace(node.id, newNode as unknown as DocNode)
+            setRewriteFor(null)
+          }}
+        />
       )}
 
       {/* Children */}
@@ -130,6 +164,7 @@ function NodeRow({ node, depth, onInsert, onReplace, onDelete, disabled }: NodeR
               <NodeRow
                 node={child}
                 depth={depth + 1}
+                workspaceId={workspaceId}
                 onInsert={onInsert}
                 onReplace={onReplace}
                 onDelete={onDelete}
@@ -376,6 +411,7 @@ function InsertGap({ anchorId, mode, onInsert, disabled }: InsertGapProps) {
 
 export function DocumentTreeView({
   document: doc,
+  workspaceId,
   onInsert,
   onReplace,
   onDelete,
@@ -405,6 +441,7 @@ export function DocumentTreeView({
           <NodeRow
             node={node}
             depth={0}
+            workspaceId={workspaceId}
             onInsert={onInsert}
             onReplace={onReplace}
             onDelete={onDelete}
