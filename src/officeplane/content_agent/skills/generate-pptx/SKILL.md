@@ -4,38 +4,41 @@ description: Generate a PowerPoint deck from ingested source documents using the
 model: deepseek/deepseek-v4-flash
 tier: flash
 inputs:
-  source_document_ids:
+  - name: source_document_ids
     type: list[str]
     required: true
-  brief:
+  - name: brief
     type: str
     required: true
-  slide_count:
+  - name: slide_count
     type: int
     required: false
-    default: 10
-    description: Target number of slides (soft cap — renderer truncates)
-  style:
+    description: Target number of slides (soft cap — renderer truncates, default 10)
+  - name: style
     type: str
     required: false
-    default: professional
-    description: e.g. "clinical", "corporate", "casual", "academic"
-  audience:
+    description: e.g. "clinical", "corporate", "casual", "academic" (default professional)
+  - name: audience
     type: str
     required: false
-    default: general
-  tone:
+    description: Target audience (default general)
+  - name: tone
     type: str
     required: false
-    default: neutral
-    description: e.g. "warm", "concise", "authoritative"
+    description: e.g. "warm", "concise", "authoritative" (default neutral)
 outputs:
-  file_path: str
-  file_url: str
-  title: str
-  slide_count: int
-  model: str
-  source_document_ids: list[str]
+  - name: file_path
+    type: str
+  - name: file_url
+    type: str
+  - name: title
+    type: str
+  - name: slide_count
+    type: int
+  - name: model
+    type: str
+  - name: source_document_ids
+    type: list[str]
 ---
 
 # generate-pptx

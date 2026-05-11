@@ -4,33 +4,39 @@ description: Generate a Word document from ingested source documents using the a
 model: deepseek/deepseek-v4-flash
 tier: flash
 inputs:
-  source_document_ids:
+  - name: source_document_ids
     type: list[str]
     required: true
     description: Prisma Document.id values to ground generation in
-  brief:
+  - name: brief
     type: str
     required: true
     description: What the user wants generated
-  style:
+  - name: style
     type: str
     required: false
     description: Tone/style hint (e.g. "clinical", "casual", "technical")
-  audience:
+  - name: audience
     type: str
     required: false
     description: Target reader description
-  target_length:
+  - name: target_length
     type: str
     required: false
     description: "short | medium | long (default: medium)"
 outputs:
-  file_path: str
-  file_url: str
-  title: str
-  node_count: int
-  model: str
-  source_document_ids: list[str]
+  - name: file_path
+    type: str
+  - name: file_url
+    type: str
+  - name: title
+    type: str
+  - name: node_count
+    type: int
+  - name: model
+    type: str
+  - name: source_document_ids
+    type: list[str]
 ---
 
 # generate-docx
