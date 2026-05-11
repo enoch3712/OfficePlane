@@ -150,3 +150,11 @@ from officeplane.api.populate_routes import router as populate_router  # noqa: E
 app.include_router(populate_router)
 from officeplane.api.tag_routes import router as tag_router  # noqa: E402
 app.include_router(tag_router)
+from officeplane.api.trigger_routes import router as trigger_router  # noqa: E402
+app.include_router(trigger_router)
+
+# Register the event → trigger dispatcher
+from officeplane.events.dispatcher import register_dispatcher  # noqa: E402
+register_dispatcher()
+from officeplane.api.retention_routes import router as retention_router  # noqa: E402
+app.include_router(retention_router)

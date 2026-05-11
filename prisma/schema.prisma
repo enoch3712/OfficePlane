@@ -60,6 +60,7 @@ model Document {
   derivations Derivation[]
   statusEvents DocumentStatusEvent[]
   tags         DocumentTag[]
+  retentions   DocumentRetention[]
 
   @@map("documents")
 }
@@ -556,4 +557,113 @@ model DocumentTag {
   @@index([documentId], name: "idx_document_tag_doc")
   @@index([tagId], name: "idx_document_tag_tag")
   @@map("document_tags")
+}
+
+// ============================================================
+// PHASE 42: EVENT BUS + TRIGGERS
+// ============================================================
+
+enum TriggerStatus {
+  ENABLED
+  DISABLED
+
+  @@map("trigger_status")
+}
+
+model Trigger {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String
+  description  String?
+  eventType    String        @map("event_type")
+  filter       Json          @default("{}")
+  pipelineSpec Json          @default("{}") @map("pipeline_spec")
+  status       TriggerStatus @default(ENABLED)
+  actor        String?
+  fireCount    Int           @default(0) @map("fire_count")
+  lastFiredAt  DateTime?     @map("last_fired_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([eventType], name: "idx_trigger_event_type")
+  @@index([status], name: "idx_trigger_status")
+  @@map("triggers")
+}
+
+model EventLog {
+  id                 String   @id @default(uuid()) @db.Uuid
+  eventType          String   @map("event_type")
+  payload            Json     @default("{}")
+  source             String?
+  matchedTriggerIds  String[] @default([]) @map("matched_trigger_ids")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([eventType], name: "idx_event_log_type")
+  @@index([createdAt], name: "idx_event_log_created")
+  @@map("event_logs")
+}
+
+// ============================================================
+// PHASE 44: RETENTION POLICIES + LEGAL HOLD + DISPOSITION
+// ============================================================
+
+enum DispositionAction {
+  ARCHIVE
+  DESTROY
+  REVIEW
+
+  @@map("disposition_action")
+}
+
+model RetentionPolicy {
+  id              String            @id @default(uuid()) @db.Uuid
+  name            String            @unique
+  description     String?
+  durationDays    Int               @map("duration_days")
+  action          DispositionAction @default(REVIEW)
+  startTrigger    String            @default("created_at") @map("start_trigger")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  applied DocumentRetention[]
+
+  @@index([name], name: "idx_retention_policy_name")
+  @@map("retention_policies")
+}
+
+model DocumentRetention {
+  id                String          @id @default(uuid()) @db.Uuid
+  documentId        String          @map("document_id") @db.Uuid
+  policyId          String          @map("policy_id") @db.Uuid
+  startAt           DateTime        @map("start_at") @db.Timestamptz(6)
+  dispositionDueAt  DateTime        @map("disposition_due_at") @db.Timestamptz(6)
+  legalHold         Boolean         @default(false) @map("legal_hold")
+  legalHoldReason   String?         @map("legal_hold_reason")
+  disposed          Boolean         @default(false)
+  disposedAt        DateTime?       @map("disposed_at") @db.Timestamptz(6)
+  actor             String?
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  document  Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  policy    RetentionPolicy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  events    DispositionEvent[]
+
+  @@index([documentId], name: "idx_doc_retention_doc")
+  @@index([dispositionDueAt], name: "idx_doc_retention_due")
+  @@index([legalHold], name: "idx_doc_retention_hold")
+  @@unique([documentId, policyId], name: "uq_doc_retention_doc_policy")
+  @@map("document_retentions")
+}
+
+model DispositionEvent {
+  id             String            @id @default(uuid()) @db.Uuid
+  retentionId    String            @map("retention_id") @db.Uuid
+  action         DispositionAction
+  status         String
+  reason         String?
+  actor          String?
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  retention DocumentRetention @relation(fields: [retentionId], references: [id], onDelete: Cascade)
+
+  @@index([retentionId], name: "idx_disposition_event_retention")
+  @@index([createdAt], name: "idx_disposition_event_created")
+  @@map("disposition_events")
 }
