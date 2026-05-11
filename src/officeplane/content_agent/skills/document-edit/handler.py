@@ -164,7 +164,10 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
             "revision": revision,
         }
 
-        # Persist edit revision row
+        # Persist edit revision row to get the DB revision number
+        revisions_dir = workspace_dir / "revisions"
+        revisions_dir.mkdir(parents=True, exist_ok=True)
+
         new_rev_id, rev_n = await persist_edit_revision(
             workspace_id=workspace_id,
             op=operation,
@@ -176,8 +179,29 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
                 "node_id": affected_id,
             },
             actor="user",
-            snapshot_path=str(doc_path),
+            snapshot_path=None,  # will update below after writing file
         )
+
+        # Write per-revision snapshot under <workspace>/revisions/<rev_n>.json
+        snapshot_n = rev_n if rev_n else revision
+        snapshot_file = revisions_dir / f"{snapshot_n}.json"
+        snapshot_file.write_text(json.dumps(out_dict, indent=2))
+
+        # Update the snapshot_path on the DB row
+        if new_rev_id:
+            try:
+                from prisma import Prisma as _Prisma
+                _db = _Prisma()
+                await _db.connect()
+                try:
+                    await _db.documentrevision.update(
+                        where={"id": new_rev_id},
+                        data={"snapshotPath": str(snapshot_file)},
+                    )
+                finally:
+                    await _db.disconnect()
+            except Exception as _e:
+                log.warning("could not update snapshotPath on revision %s: %s", new_rev_id, _e)
 
         await persist_skill_invocation(
             skill="document-edit",

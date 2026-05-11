@@ -136,6 +136,15 @@ export function Editor({ workspaceId }: EditorProps) {
           View source trail
         </a>
 
+        {doc.revision !== undefined && doc.revision > 1 && (
+          <a
+            className="text-sm text-primary underline hover:no-underline"
+            href={`/workspaces/${workspaceId}/diff/${doc.revision - 1}/${doc.revision}`}
+          >
+            View changes
+          </a>
+        )}
+
         <div className="mt-auto pt-4 border-t border-border">
           <p className="text-[10px] font-mono text-muted-foreground mb-1">Workspace</p>
           <p className="text-[10px] font-mono text-muted-foreground break-all">{workspaceId}</p>
