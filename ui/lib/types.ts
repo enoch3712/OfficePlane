@@ -76,6 +76,7 @@ export interface DocumentListItem {
   total_chapters: number
   total_sections: number
   total_pages?: number
+  status?: string
 }
 
 export interface Document {

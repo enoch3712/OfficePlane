@@ -132,3 +132,7 @@ from officeplane.api.validator_routes import router as validator_router  # noqa:
 app.include_router(validator_router)
 from officeplane.api.lifecycle_routes import router as lifecycle_router  # noqa: E402
 app.include_router(lifecycle_router)
+from officeplane.api.rewrite_routes import router as rewrite_router  # noqa: E402
+app.include_router(rewrite_router)
+from officeplane.api.streaming_routes import router as streaming_router  # noqa: E402
+app.include_router(streaming_router)

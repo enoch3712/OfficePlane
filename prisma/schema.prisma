@@ -23,22 +23,32 @@ datasource db {
 // EXISTING SCHEMA (from init.sql)
 // ============================================================
 
+enum DocumentStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  ARCHIVED
+
+  @@map("document_status")
+}
+
 model Document {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title        String
   author       String?
-  metadata     Json     @default("{}")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  metadata     Json           @default("{}")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz
   // Original file storage
-  sourceFile   Bytes?   @map("source_file")
-  sourceFormat String?  @map("source_format") // 'docx', 'pdf', etc.
-  fileName     String?  @map("file_name")
-  summary       String?  @db.Text
-  topics        String[] @default([])
-  keyEntities   Json     @default("{}") @map("key_entities")
-  summaryModel  String?  @map("summary_model")
-  summarizedAt  DateTime? @map("summarized_at") @db.Timestamptz
+  sourceFile   Bytes?         @map("source_file")
+  sourceFormat String?        @map("source_format") // 'docx', 'pdf', etc.
+  fileName     String?        @map("file_name")
+  summary       String?       @db.Text
+  topics        String[]      @default([])
+  keyEntities   Json          @default("{}") @map("key_entities")
+  summaryModel  String?       @map("summary_model")
+  summarizedAt  DateTime?     @map("summarized_at") @db.Timestamptz
+  status        DocumentStatus @default(DRAFT)
 
   // Relations
   chapters    Chapter[]
@@ -48,8 +58,25 @@ model Document {
   history     ExecutionHistory[]
   collections DocumentCollection[]
   derivations Derivation[]
+  statusEvents DocumentStatusEvent[]
 
   @@map("documents")
+}
+
+model DocumentStatusEvent {
+  id          String          @id @default(uuid()) @db.Uuid
+  documentId  String          @map("document_id") @db.Uuid
+  fromStatus  DocumentStatus? @map("from_status")
+  toStatus    DocumentStatus  @map("to_status")
+  actor       String?
+  note        String?
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  document    Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId], name: "idx_status_event_document")
+  @@index([createdAt], name: "idx_status_event_created")
+  @@map("document_status_events")
 }
 
 model Collection {

@@ -8,6 +8,8 @@ import { Document } from '@/lib/types'
 import { FileText, ChevronDown, ChevronRight, BookOpen, FileType, Hash, Trash2, GitBranch } from 'lucide-react'
 import { TimeAgo } from './TimeAgo'
 import { ConfirmDialog } from './ConfirmDialog'
+import { StatusBadge } from './documents/StatusBadge'
+import { DocumentStatus } from '@/lib/api/lifecycle'
 
 export function DocumentsPanel() {
   const queryClient = useQueryClient()
@@ -151,6 +153,7 @@ export function DocumentsPanel() {
                           <span className="font-medium text-white">
                             {document.title}
                           </span>
+                          <StatusBadge status={(document.status as DocumentStatus) ?? 'DRAFT'} />
                         </div>
 
                         <div className="ml-7 grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
