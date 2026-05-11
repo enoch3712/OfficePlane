@@ -16,12 +16,16 @@ log = logging.getLogger("officeplane.api.pipelines")
 
 
 class StepSpec(BaseModel):
+    model_config = {"extra": "allow", "populate_by_name": True}
+
     alias: str | None = None
-    skill: str
+    skill: str | None = None  # None for foreach steps; required for regular steps
     inputs: dict[str, Any] = Field(default_factory=dict)
 
 
 class PipelineSpec(BaseModel):
+    model_config = {"extra": "allow"}
+
     name: str | None = None
     steps: list[StepSpec]
 
