@@ -56,6 +56,21 @@ async def transition_document_status(document_id: str, body: TransitionRequest):
             "actor": body.actor,
             "note": body.note,
         })
+        # Emit event-bus event
+        try:
+            from officeplane.events.bus import emit as _emit
+            await _emit(
+                "document.status_changed",
+                {
+                    "document_id": document_id,
+                    "from_status": current,
+                    "to_status": body.to_status,
+                    "actor": body.actor,
+                },
+                source="lifecycle_routes",
+            )
+        except Exception as _e:
+            log.warning("event emit failed after status transition: %s", _e)
         return {
             "document_id": document_id,
             "from_status": current,

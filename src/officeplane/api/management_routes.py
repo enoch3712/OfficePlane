@@ -448,6 +448,35 @@ async def _ingest_uploaded_file(
             },
         )
 
+        # Emit event-bus events
+        try:
+            from officeplane.events.bus import emit as _emit
+            await _emit(
+                "document.uploaded",
+                {
+                    "document": {
+                        "id": str(full_document.id),
+                        "title": full_document.title,
+                        "source_format": doc_format.value,
+                    }
+                },
+                source="management_routes",
+            )
+            await _emit(
+                "document.ingested",
+                {
+                    "document": {
+                        "id": str(full_document.id),
+                        "title": full_document.title,
+                        "source_format": doc_format.value,
+                        "chapter_count": len(full_document.chapters or []),
+                    }
+                },
+                source="management_routes",
+            )
+        except Exception as _e:
+            logging.warning("event emit failed after document ingestion: %s", _e)
+
         return _serialize_document(full_document)
     finally:
         await doc_store.close()
