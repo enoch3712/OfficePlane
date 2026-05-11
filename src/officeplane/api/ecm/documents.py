@@ -1,5 +1,5 @@
 """
-ECM Document routes — [MOCK]
+ECM Document routes — [PARTIAL MOCK]
 
 Document-level ECM operations: metadata, permissions, audit, lifecycle,
 renditions, relations, subscriptions, and agentic extras.
@@ -7,7 +7,7 @@ renditions, relations, subscriptions, and agentic extras.
 GET/PUT /api/ecm/documents/{id}/metadata
 POST    /api/ecm/documents/{id}/classify
 GET/PUT /api/ecm/documents/{id}/permissions
-GET     /api/ecm/documents/{id}/audit
+GET     /api/ecm/documents/{id}/audit             ← REAL (skill_invocations)
 GET     /api/ecm/documents/{id}/diff/{v1}/{v2}
 PUT     /api/ecm/documents/{id}/status
 POST    /api/ecm/documents/{id}/archive
@@ -25,12 +25,17 @@ POST    /api/ecm/documents/{id}/explain
 
 from __future__ import annotations
 
+import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
+from prisma import Prisma
 from pydantic import BaseModel
+
+log = logging.getLogger("officeplane.api.ecm.documents")
 
 router = APIRouter(prefix="/api/ecm/documents", tags=["ecm:documents"])
 
@@ -117,16 +122,90 @@ async def update_permissions(document_id: str, request: PermissionsUpdate):
 # ── Audit ─────────────────────────────────────────────────────────────────────
 
 @router.get("/{document_id}/audit")
-async def get_audit_log(document_id: str, limit: int = 20):
+async def get_audit_log(
+    document_id: str,
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    db = Prisma()
+    await db.connect()
+    try:
+        # 1. 404 if document missing
+        doc = await db.document.find_unique(where={"id": document_id})
+        if not doc:
+            raise HTTPException(status_code=404, detail="document not found")
+
+        # 2. Find workspaces that derived from this document
+        derivations = await db.derivation.find_many(
+            where={"sourceDocumentId": document_id},
+        )
+        workspace_ids = list({d.workspaceId for d in derivations if d.workspaceId})
+
+        # 3. Pull invocations
+        if not workspace_ids:
+            return {"document_id": document_id, "total_count": 0, "events": []}
+
+        where_clause: dict[str, Any] = {"workspaceId": {"in": workspace_ids}}
+
+        total = await db.skillinvocation.count(where=where_clause)
+        rows = await db.skillinvocation.find_many(
+            where=where_clause,
+            order={"startedAt": "desc"},
+            take=limit,
+            skip=offset,
+        )
+
+        events = [_invocation_to_event(r) for r in rows]
+        return {"document_id": document_id, "total_count": total, "events": events}
+    finally:
+        await db.disconnect()
+
+
+def _parse_outputs(raw: Any) -> dict[str, Any]:
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+    if isinstance(raw, dict):
+        return raw
+    return {}
+
+
+def _summarise(skill: str, status: str, outputs: dict[str, Any]) -> str:
+    if status == "error":
+        return f"{skill} (error)"
+    if skill == "generate-docx":
+        title = outputs.get("title") or "Untitled"
+        n = outputs.get("node_count")
+        return f"Generated Word doc · {title}" + (f" · {n} nodes" if n else "")
+    if skill == "generate-pptx":
+        title = outputs.get("title") or "Untitled"
+        n = outputs.get("slide_count")
+        return f"Generated deck · {title}" + (f" · {n} slides" if n else "")
+    if skill == "document-edit":
+        op = outputs.get("operation") or ""
+        aff = outputs.get("affected_node_id") or ""
+        return f"Edited document · {op} {aff}".strip()
+    return f"{skill} ({status})"
+
+
+def _invocation_to_event(r: Any) -> dict[str, Any]:
+    outputs = _parse_outputs(r.outputs)
+    summary = _summarise(r.skill, r.status, outputs)
+    affected = outputs.get("affected_node_id")
     return {
-        "document_id": document_id,
-        "events": [
-            {"event_id": f"evt_{i}", "type": t, "actor": "user:alice",
-             "timestamp": datetime.now(timezone.utc).isoformat(), "detail": {}}
-            for i, t in enumerate(["document_opened", "document_edited", "version_created", "document_closed"])
-        ],
-        "total": 4,
-        "_mock": _MOCK,
+        "id": r.id,
+        "timestamp": r.startedAt.isoformat() if r.startedAt else None,
+        "skill": r.skill,
+        "model": r.model,
+        "actor": r.actor,
+        "status": r.status,
+        "duration_ms": r.durationMs,
+        "workspace_id": r.workspaceId,
+        "error_message": r.errorMessage,
+        "affected_node_id": affected,
+        "summary": summary,
     }
 
 
