@@ -241,6 +241,83 @@ def _parse_node(d: dict) -> Section | Block | None:
 # ---------------------------------------------------------------------------
 
 
+def document_to_dict(doc: Document) -> dict[str, Any]:
+    """Serialise a Document tree to a JSON-compatible dict.
+
+    Round-trip stable with parse_document.
+    """
+    return {
+        "type": "document",
+        "schema_version": doc.schema_version,
+        "meta": {
+            "title": doc.meta.title,
+            "language": doc.meta.language,
+            "render_hints": dict(doc.meta.render_hints),
+        },
+        "children": [_node_to_dict(c) for c in doc.children],
+        "attributions": [
+            {
+                "node_id": a.node_id,
+                "document_id": a.document_id,
+                "document_title": a.document_title,
+                "chapter_id": a.chapter_id,
+                "section_id": a.section_id,
+                "page_numbers": list(a.page_numbers),
+            }
+            for a in doc.attributions
+        ],
+    }
+
+
+def _node_to_dict(node: Any) -> dict[str, Any]:
+    """Serialise a single Section or Block node to a JSON-compatible dict."""
+    if isinstance(node, Section):
+        return {
+            "type": "section",
+            "id": node.id,
+            "level": node.level,
+            "heading": node.heading,
+            "meta": dict(node.meta),
+            "children": [_node_to_dict(c) for c in node.children],
+        }
+    if isinstance(node, Heading):
+        return {"type": "heading", "id": node.id, "level": node.level, "text": node.text}
+    if isinstance(node, Paragraph):
+        return {"type": "paragraph", "id": node.id, "text": node.text}
+    if isinstance(node, List):
+        return {
+            "type": "list",
+            "id": node.id,
+            "ordered": node.ordered,
+            "items": [_node_to_dict(i) for i in node.items],
+        }
+    if isinstance(node, Table):
+        return {
+            "type": "table",
+            "id": node.id,
+            "headers": list(node.headers),
+            "rows": [list(r) for r in node.rows],
+        }
+    if isinstance(node, Figure):
+        return {
+            "type": "figure",
+            "id": node.id,
+            "src": node.src,
+            "caption": node.caption,
+            "alt": node.alt,
+            "prompt": node.prompt,
+        }
+    if isinstance(node, Code):
+        return {"type": "code", "id": node.id, "lang": node.lang, "text": node.text}
+    if isinstance(node, Callout):
+        return {"type": "callout", "id": node.id, "variant": node.variant, "text": node.text}
+    if isinstance(node, Quote):
+        return {"type": "quote", "id": node.id, "text": node.text}
+    if isinstance(node, Divider):
+        return {"type": "divider", "id": node.id}
+    raise TypeError(f"unknown node type: {type(node).__name__}")
+
+
 def parse_document(data: dict) -> Document:
     """Parse a dict into a :class:`Document`, lenient about missing fields.
 

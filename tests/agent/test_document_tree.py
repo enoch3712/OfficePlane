@@ -173,3 +173,38 @@ def test_auto_assigns_node_ids():
     assert para.id != "" and para.id is not None
     assert isinstance(section, Section)
     assert section.id != "" and section.id is not None
+
+
+def test_document_to_dict_round_trip():
+    from officeplane.content_agent.renderers.document import (
+        parse_document,
+        document_to_dict,
+    )
+
+    src = {
+        "type": "document",
+        "meta": {"title": "T"},
+        "children": [
+            {
+                "type": "section",
+                "id": "s1",
+                "level": 1,
+                "heading": "H",
+                "children": [
+                    {"type": "paragraph", "id": "p1", "text": "x"},
+                    {
+                        "type": "list",
+                        "ordered": True,
+                        "items": [{"type": "paragraph", "text": "i"}],
+                    },
+                    {"type": "table", "headers": ["a"], "rows": [["b"]]},
+                ],
+            },
+        ],
+        "attributions": [{"node_id": "p1", "document_id": "d1"}],
+    }
+    doc = parse_document(src)
+    out = document_to_dict(doc)
+    # Round-trip stable through parse_document
+    doc2 = parse_document(out)
+    assert document_to_dict(doc2) == out
