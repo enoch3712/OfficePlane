@@ -324,6 +324,8 @@ _ALLOWED_FORMATS = {
     DocumentFormat.PDF,
     DocumentFormat.PPTX,
     DocumentFormat.PPT,
+    DocumentFormat.XLSX,
+    DocumentFormat.XLS,
 }
 
 
@@ -350,7 +352,7 @@ async def _ingest_uploaded_file(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Only .doc, .docx, .pdf, .ppt, and .pptx files are supported "
+                "Only .doc, .docx, .pdf, .ppt, .pptx, .xls, and .xlsx files are supported "
                 f"(detected: {doc_format.value})"
             ),
         )

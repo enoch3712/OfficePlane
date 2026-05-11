@@ -5,6 +5,7 @@ from officeplane.ingestion.format_detector import DocumentFormat
 from officeplane.ingestion.text_extractors.docx import extract_docx_text
 from officeplane.ingestion.text_extractors.pdf import extract_pdf_text
 from officeplane.ingestion.text_extractors.pptx import extract_pptx_text
+from officeplane.ingestion.text_extractors.xlsx import extract_xlsx_text
 
 
 def extract_text(data: bytes, doc_format: DocumentFormat) -> list[dict]:
@@ -14,7 +15,15 @@ def extract_text(data: bytes, doc_format: DocumentFormat) -> list[dict]:
         return extract_docx_text(data)
     if doc_format in (DocumentFormat.PPTX, DocumentFormat.PPT):
         return extract_pptx_text(data)
+    if doc_format in (DocumentFormat.XLSX, DocumentFormat.XLS):
+        return extract_xlsx_text(data)
     raise ValueError(f"unsupported format for text extraction: {doc_format}")
 
 
-__all__ = ["extract_text", "extract_pdf_text", "extract_docx_text", "extract_pptx_text"]
+__all__ = [
+    "extract_text",
+    "extract_pdf_text",
+    "extract_docx_text",
+    "extract_pptx_text",
+    "extract_xlsx_text",
+]
