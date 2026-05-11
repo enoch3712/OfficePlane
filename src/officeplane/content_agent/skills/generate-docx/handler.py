@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,12 @@ import litellm
 from prisma import Prisma
 
 from officeplane.content_agent.document_ops import walk_nodes
-from officeplane.content_agent.renderers.document import parse_document
+from officeplane.content_agent.persistence import (
+    persist_derivations_from_document,
+    persist_initial_revision,
+    persist_skill_invocation,
+)
+from officeplane.content_agent.renderers.document import document_to_dict, parse_document
 from officeplane.content_agent.renderers.docx_render import render_docx
 
 log = logging.getLogger("officeplane.skills.generate-docx")
@@ -178,69 +184,114 @@ async def execute(*, inputs: dict[str, Any], **_) -> dict[str, Any]:
     Raises:
         ValueError: on invalid inputs or non-JSON LLM response.
     """
-    source_ids: list[str] = list(inputs.get("source_document_ids") or [])
-    brief: str = str(inputs.get("brief") or "").strip()
-    style: str = str(inputs.get("style") or "professional").strip()
-    audience: str = str(inputs.get("audience") or "general audience").strip()
-    target_length: str | None = inputs.get("target_length")
+    t0 = time.time()
+    try:
+        source_ids: list[str] = list(inputs.get("source_document_ids") or [])
+        brief: str = str(inputs.get("brief") or "").strip()
+        style: str = str(inputs.get("style") or "professional").strip()
+        audience: str = str(inputs.get("audience") or "general audience").strip()
+        target_length: str | None = inputs.get("target_length")
 
-    # --- validation ---
-    if not source_ids:
-        raise ValueError("source_document_ids is required and must be non-empty")
-    if not brief:
-        raise ValueError("brief is required")
+        # --- validation ---
+        if not source_ids:
+            raise ValueError("source_document_ids is required and must be non-empty")
+        if not brief:
+            raise ValueError("brief is required")
 
-    # --- load sources ---
-    sources = await _load_sources(source_ids)
-    if not sources:
-        raise ValueError(
-            f"none of the provided source_document_ids resolved: {source_ids}"
+        # --- load sources ---
+        sources = await _load_sources(source_ids)
+        if not sources:
+            raise ValueError(
+                f"none of the provided source_document_ids resolved: {source_ids}"
+            )
+
+        source_blob = _format_source_blob(sources)
+        prompt = PROMPT_TEMPLATE.format(
+            audience=audience,
+            style=style,
+            length_hint=_length_hint(target_length),
+            brief=brief,
+            source_blob=source_blob,
         )
 
-    source_blob = _format_source_blob(sources)
-    prompt = PROMPT_TEMPLATE.format(
-        audience=audience,
-        style=style,
-        length_hint=_length_hint(target_length),
-        brief=brief,
-        source_blob=source_blob,
-    )
+        model = os.getenv("OFFICEPLANE_AGENT_MODEL_FLASH", "deepseek/deepseek-v4-flash")
+        log.info("generate-docx via %s for sources=%s", model, source_ids)
 
-    model = os.getenv("OFFICEPLANE_AGENT_MODEL_FLASH", "deepseek/deepseek-v4-flash")
-    log.info("generate-docx via %s for sources=%s", model, source_ids)
+        response = await litellm.acompletion(
+            model=model,
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw: str = response.choices[0].message.content or "{}"
 
-    response = await litellm.acompletion(
-        model=model,
-        temperature=0.2,
-        response_format={"type": "json_object"},
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw: str = response.choices[0].message.content or "{}"
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"LLM did not return JSON: {exc}") from exc
 
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"LLM did not return JSON: {exc}") from exc
+        doc = parse_document(data)
 
-    doc = parse_document(data)
+        job_id = str(uuid.uuid4())
+        workspace_root = Path(os.getenv("CONTENT_AGENT_WORKSPACE", "/data/workspaces"))
+        workspace = workspace_root / job_id
+        workspace.mkdir(parents=True, exist_ok=True)
 
-    job_id = str(uuid.uuid4())
-    workspace_root = Path(os.getenv("CONTENT_AGENT_WORKSPACE", "/data/workspaces"))
-    out_dir = workspace_root / job_id
-    out_dir.mkdir(parents=True, exist_ok=True)
+        docx_bytes = render_docx(doc, workspace_dir=workspace)
 
-    docx_bytes = render_docx(doc, workspace_dir=out_dir)
+        out_path = workspace / "output.docx"
+        out_path.write_bytes(docx_bytes)
 
-    out_path = out_dir / "output.docx"
-    out_path.write_bytes(docx_bytes)
+        node_count = sum(1 for _ in walk_nodes(doc))
 
-    node_count = sum(1 for _ in walk_nodes(doc))
+        result_dict = {
+            "file_path": str(out_path),
+            "file_url": f"/data/workspaces/{job_id}/output.docx",
+            "title": doc.meta.title,
+            "node_count": node_count,
+            "model": model,
+            "source_document_ids": source_ids,
+        }
 
-    return {
-        "file_path": str(out_path),
-        "file_url": f"/data/workspaces/{job_id}/output.docx",
-        "title": doc.meta.title,
-        "node_count": node_count,
-        "model": model,
-        "source_document_ids": source_ids,
-    }
+        # Snapshot the Document JSON for future edits
+        (workspace / "document.json").write_text(json.dumps(document_to_dict(doc)))
+
+        # Persist provenance + initial revision
+        await persist_initial_revision(
+            workspace_id=job_id,
+            op="create",
+            payload={"skill": "generate-docx", "title": doc.meta.title, "node_count": node_count},
+            snapshot_path=str(workspace / "document.json"),
+        )
+        await persist_derivations_from_document(
+            workspace_id=job_id,
+            generated_doc_path=str(out_path),
+            doc=doc,
+            skill="generate-docx",
+            model=model,
+            prompt=prompt,
+        )
+        await persist_skill_invocation(
+            skill="generate-docx",
+            model=model,
+            workspace_id=job_id,
+            inputs=inputs,
+            outputs=result_dict,
+            status="ok",
+            error_message=None,
+            duration_ms=int((time.time() - t0) * 1000),
+        )
+        return result_dict
+
+    except Exception as e:
+        await persist_skill_invocation(
+            skill="generate-docx",
+            model=None,
+            workspace_id=None,
+            inputs=inputs,
+            outputs={},
+            status="error",
+            error_message=str(e),
+            duration_ms=int((time.time() - t0) * 1000),
+        )
+        raise
