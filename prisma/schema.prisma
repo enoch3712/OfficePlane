@@ -59,6 +59,7 @@ model Document {
   collections DocumentCollection[]
   derivations Derivation[]
   statusEvents DocumentStatusEvent[]
+  tags         DocumentTag[]
 
   @@map("documents")
 }
@@ -470,4 +471,89 @@ model SkillInvocation {
   @@index([workspaceId], name: "idx_skill_inv_workspace")
   @@index([startedAt], name: "idx_skill_inv_started")
   @@map("skill_invocations")
+}
+
+// ============================================================
+// PHASE 38: PIPELINE ORCHESTRATION
+// ============================================================
+
+enum PipelineRunState {
+  QUEUED
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+
+  @@map("pipeline_run_state")
+}
+
+model PipelineRun {
+  id           String           @id @default(uuid()) @db.Uuid
+  name         String?
+  spec         Json             @default("{}")
+  state        PipelineRunState @default(QUEUED)
+  parameters   Json             @default("{}")
+  actor        String?
+  errorMessage String?          @map("error_message")
+  startedAt    DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime?        @map("finished_at") @db.Timestamptz(6)
+
+  steps PipelineStep[]
+
+  @@index([state], name: "idx_pipeline_run_state")
+  @@index([startedAt], name: "idx_pipeline_run_started")
+  @@map("pipeline_runs")
+}
+
+model PipelineStep {
+  id           String           @id @default(uuid()) @db.Uuid
+  runId        String           @map("run_id") @db.Uuid
+  stepIndex    Int              @map("step_index")
+  alias        String?
+  skill        String
+  inputs       Json             @default("{}")
+  outputs      Json             @default("{}")
+  state        PipelineRunState @default(QUEUED)
+  errorMessage String?          @map("error_message")
+  startedAt    DateTime?        @map("started_at") @db.Timestamptz(6)
+  finishedAt   DateTime?        @map("finished_at") @db.Timestamptz(6)
+  durationMs   Int?             @map("duration_ms")
+
+  run PipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, stepIndex], name: "uq_pipeline_step_run_idx")
+  @@index([runId], name: "idx_pipeline_step_run")
+  @@map("pipeline_steps")
+}
+
+// ============================================================
+// PHASE 41: DOCUMENT TAGS
+// ============================================================
+
+model Tag {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String        @unique          // lowercase, kebab-case enforced at API
+  color       String?       @default("#5EFCAB")
+  description String?
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  documents   DocumentTag[]
+
+  @@index([name], name: "idx_tag_name")
+  @@map("tags")
+}
+
+model DocumentTag {
+  documentId  String   @map("document_id") @db.Uuid
+  tagId       String   @map("tag_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor       String?
+
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
+  @@index([documentId], name: "idx_document_tag_doc")
+  @@index([tagId], name: "idx_document_tag_tag")
+  @@map("document_tags")
 }
