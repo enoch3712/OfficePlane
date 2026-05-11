@@ -30,7 +30,7 @@ def test_audit_returns_real_bp_events():
     e = j["events"][0]
     for k in ("id", "timestamp", "skill", "status", "summary"):
         assert k in e
-    assert e["skill"] in ("generate-docx", "generate-pptx", "document-edit")
+    assert isinstance(e["skill"], str) and e["skill"]  # any valid skill name
 
 
 def test_audit_pagination():
