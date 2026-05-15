@@ -17,6 +17,28 @@ from officeplane.content_agent.image_provider import get_provider
 log = logging.getLogger("officeplane.image_embed")
 
 
+def _run_async_safe(coro):
+    """Run an async coroutine from sync code regardless of whether the caller
+    is already inside a running event loop.
+
+    The pptx/docx renderers are sync but are dispatched from within an async
+    FastAPI handler, so `asyncio.get_event_loop()` finds an already-running
+    loop and we cannot `run_until_complete` on it. Solution: run the coroutine
+    in a fresh loop on a worker thread.
+    """
+    import concurrent.futures
+
+    def _runner():
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        return ex.submit(_runner).result()
+
+
 def resolve_figure_image(fig: Figure, workspace_dir: Path) -> Path | None:
     """Synchronous wrapper used by the docx/pptx renderers (which are sync)."""
     # If src is a real file, use it.
@@ -37,18 +59,7 @@ def resolve_figure_image(fig: Figure, workspace_dir: Path) -> Path | None:
 
     try:
         provider = get_provider()
-        # Run async provider in a fresh event loop if needed
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Already in a running loop — use a new event loop in a thread
-                png_bytes = asyncio.new_event_loop().run_until_complete(
-                    provider.generate_image(fig.prompt)
-                )
-            else:
-                png_bytes = loop.run_until_complete(provider.generate_image(fig.prompt))
-        except RuntimeError:
-            png_bytes = asyncio.run(provider.generate_image(fig.prompt))
+        png_bytes = _run_async_safe(provider.generate_image(fig.prompt))
     except Exception as e:
         log.warning("image generation failed for figure %s: %s", fig.id, e)
         return None

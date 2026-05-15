@@ -59,6 +59,13 @@ class PlaceholderProvider(ImageProvider):
 
 
 class GeminiImageProvider(ImageProvider):
+    """Gemini image generation via the new google.genai SDK.
+
+    Tries gemini-2.5-flash-image first (preview image-output mode), falls
+    back to imagen-3.0-generate-001 if available. Raises on failure so the
+    caller (resolve_figure_image) can skip cleanly.
+    """
+
     def __init__(self, model: str = "gemini-2.5-flash-image"):
         self._model = model
         self._key = os.getenv("GOOGLE_API_KEY")
@@ -66,20 +73,28 @@ class GeminiImageProvider(ImageProvider):
             raise RuntimeError("GOOGLE_API_KEY required for GeminiImageProvider")
 
     async def generate_image(self, prompt: str, *, width: int = 1024, height: int = 768) -> bytes:
-        # Use google-generativeai SDK in an executor to avoid blocking the loop.
         import asyncio
-        import google.generativeai as genai
-        genai.configure(api_key=self._key)
-        model = genai.GenerativeModel(self._model)
+        from google import genai
+        from google.genai import types
 
-        def _call():
-            resp = model.generate_content([prompt])
-            # New SDK returns multipart; pluck the first image part
-            for part in resp.candidates[0].content.parts:
-                inline = getattr(part, "inline_data", None)
-                if inline and inline.data and "image" in getattr(inline, "mime_type", ""):
-                    return bytes(inline.data)
-            raise RuntimeError("Gemini did not return image bytes")
+        client = genai.Client(api_key=self._key)
+
+        def _call() -> bytes:
+            resp = client.models.generate_content(
+                model=self._model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE", "TEXT"],
+                ),
+            )
+            for cand in (resp.candidates or []):
+                for part in (cand.content.parts or []):
+                    inline = getattr(part, "inline_data", None)
+                    if inline and getattr(inline, "data", None):
+                        mt = getattr(inline, "mime_type", "") or ""
+                        if "image" in mt:
+                            return bytes(inline.data)
+            raise RuntimeError("Gemini returned no image bytes")
 
         return await asyncio.get_event_loop().run_in_executor(None, _call)
 

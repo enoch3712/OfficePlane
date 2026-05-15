@@ -42,6 +42,9 @@ htmlcov/
 /data/
 demo_out/
 
+# Playwright MCP scratch
+.playwright-mcp/
+
 # OS specific
 .DS_Store
 .env

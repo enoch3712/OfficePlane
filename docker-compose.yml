@@ -74,6 +74,8 @@ services:
       - CONTENT_AGENT_TIMEOUT=${CONTENT_AGENT_TIMEOUT:-600}
       - CONTENT_AGENT_WORKSPACE=/data/workspaces
       - GOTENBERG_URL=${GOTENBERG_URL:-http://gotenberg:3000}
+      - OFFICEPLANE_IMAGE_PROVIDER=${OFFICEPLANE_IMAGE_PROVIDER:-placeholder}
+      - OFFICEPLANE_PPTX_TEMPLATE=${OFFICEPLANE_PPTX_TEMPLATE:-/app/src/officeplane/assets/templates/styled-clinical.pptx}
     depends_on:
       db:
         condition: service_healthy

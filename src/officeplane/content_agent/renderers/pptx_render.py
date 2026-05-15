@@ -473,7 +473,12 @@ def render_pptx(doc: Document, *, workspace_dir: Path | None = None) -> bytes:
             still produce images without a real workspace path.
     """
     ws = workspace_dir if workspace_dir is not None else Path("/tmp")
-    prs = Presentation()
+    import os
+    template = os.getenv("OFFICEPLANE_PPTX_TEMPLATE") or ""
+    if template and isfile(template):
+        prs = Presentation(template)
+    else:
+        prs = Presentation()
     prs.slide_width = _SLIDE_WIDTH
     prs.slide_height = _SLIDE_HEIGHT
 
