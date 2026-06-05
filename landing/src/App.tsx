@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  Braces,
   Code2,
   FileText,
   FolderSearch,
@@ -20,12 +19,10 @@ export default function App() {
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#060a14]/80 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
           <a href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/15 border border-orange-500/30">
-              <Braces className="h-5 w-5 text-orange-400" />
-            </div>
-            <div>
-              <p className="font-heading text-lg font-semibold tracking-tight">OfficePlane</p>
-              <p className="text-xs text-slate-400">Open-Source ECM</p>
+            <img src="/logo.png" alt="" className="h-14 w-14 object-contain" />
+            <div className="leading-none">
+              <p className="font-heading text-xl font-bold tracking-tight text-white">OfficePlane</p>
+              <p className="mt-1 text-xs font-medium tracking-wide text-sky-400">Agentic ECM</p>
             </div>
           </a>
           <div className="flex items-center gap-4">
@@ -428,12 +425,10 @@ export default function App() {
           <div className="grid gap-8 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
             <div>
               <a href="/" className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/15 border border-orange-500/30">
-                  <Braces className="h-5 w-5 text-orange-400" />
-                </div>
-                <div>
-                  <p className="font-heading text-lg font-semibold tracking-tight text-white">OfficePlane</p>
-                  <p className="text-xs text-slate-400">Open-Source ECM</p>
+                <img src="/logo.png" alt="" className="h-14 w-14 object-contain" />
+                <div className="leading-none">
+                  <p className="font-heading text-xl font-bold tracking-tight text-white">OfficePlane</p>
+                  <p className="mt-1 text-xs font-medium tracking-wide text-sky-400">Agentic ECM</p>
                 </div>
               </a>
               <p className="mt-4 max-w-xs text-sm text-slate-400">
