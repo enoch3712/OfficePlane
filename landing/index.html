@@ -25,7 +25,6 @@
     <div class="nav-links">
       <a class="link" href="#protocol">Protocol</a>
       <a class="link" href="#pillars">Capabilities</a>
-      <a class="link" href="#drivers">Drivers</a>
       <a class="link" href="#enterprise">Enterprise</a>
       <a class="hyper-byline" href="#">by the <b>hyper <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21a9 9 0 1 1 9-9"></path><path d="M12 12l5-3"></path><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle></svg></b> team</a>
       <a class="stars-pill" href="https://github.com/officeplane/officeplane" target="_blank" rel="noopener">
@@ -313,49 +312,6 @@
 <div class="ln"><span class="tk-fn">print</span>(result.path)        <span class="tk-mut"># ./output/exec-summary.docx</span></div>
         </div>
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============ DRIVERS / PERF ============ -->
-<section class="section" id="drivers" style="background:var(--bg-1); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <span class="eyebrow">Pluggable drivers</span>
-      <h2>Swap the engine. <span class="tinted">Keep the contract.</span></h2>
-      <p>The same <span class="mono">OfficeDriver</span> interface runs everywhere — from a zero-dependency mock for CI to a native Rust core that's ~50% faster.</p>
-    </div>
-    <div class="driver-grid">
-      <div class="driver-card reveal">
-        <div class="dc-ico" style="color:var(--faint)">{ }</div>
-        <h4>Mock</h4>
-        <p class="dc-sub">Zero dependencies. Runs full E2E tests in-process — no LibreOffice, no logins.</p>
-        <div class="dc-speed"><span>CI / testing</span><b>instant</b></div>
-      </div>
-      <div class="driver-card reveal">
-        <div class="dc-ico" style="color:var(--blue)">LO</div>
-        <h4>LibreOffice</h4>
-        <p class="dc-sub">Hardened subprocess pool with backpressure, timeouts and restarts.</p>
-        <div class="dc-speed"><span>convert + render</span><b>~1.1s</b></div>
-      </div>
-      <div class="driver-card reveal">
-        <div class="dc-ico" style="color:var(--brand)">Rs</div>
-        <h4>Rust native <span class="badge-fast">FASTEST</span></h4>
-        <p class="dc-sub">PyO3-bound native core with real threads for maximum throughput.</p>
-        <div class="dc-speed"><span>convert + render</span><b>~0.5s</b></div>
-      </div>
-      <div class="driver-card reveal">
-        <div class="dc-ico" style="color:var(--violet)">Vz</div>
-        <h4>Gemini vision</h4>
-        <p class="dc-sub">Page images → hierarchical structure with pgvector embeddings for semantic search.</p>
-        <div class="dc-speed"><span>ingestion</span><b>per-page</b></div>
-      </div>
-    </div>
-
-    <div class="perf reveal">
-      <h4>Convert + render latency</h4>
-      <div class="perf-row lo"><span class="pr-name">LibreOffice</span><div class="pr-track"><div class="pr-fill" data-w="100%"></div></div><span class="pr-val">1.1s</span></div>
-      <div class="perf-row rust"><span class="pr-name">Rust native</span><div class="pr-track"><div class="pr-fill" data-w="50%"></div></div><span class="pr-val">0.5s</span></div>
     </div>
   </div>
 </section>

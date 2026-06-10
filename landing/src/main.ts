@@ -101,22 +101,6 @@ const rtIO = new IntersectionObserver((entries) => {
 }, { threshold: 0.3 })
 if (rtBad) rtIO.observe(rtBad)
 
-/* ---- perf bars fill on reveal ---- */
-const perf = document.querySelector('.perf')
-if (perf) {
-  const perfIO = new IntersectionObserver((entries) => {
-    entries.forEach((e) => {
-      if (e.isIntersecting) {
-        document.querySelectorAll<HTMLElement>('.pr-fill').forEach((f) => {
-          f.style.width = f.dataset.w ?? ''
-        })
-        perfIO.disconnect()
-      }
-    })
-  }, { threshold: 0.4 })
-  perfIO.observe(perf)
-}
-
 /* ---- copy command ---- */
 const copyBtn = document.getElementById('copyCmd')
 if (copyBtn) {
