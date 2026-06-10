@@ -109,12 +109,6 @@ a { color: inherit; text-decoration: none; }
 .nav-links { display: flex; align-items: center; gap: 30px; }
 .nav-links a.link { font-size: 14.5px; color: var(--dim); transition: color .18s; }
 .nav-links a.link:hover { color: var(--brand); }
-.stars-pill {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-family: var(--font-mono); font-size: 13px; color: var(--dim);
-  padding: 7px 13px; border: 1px solid var(--line); border-radius: 999px;
-}
-.stars-pill b { color: var(--text); font-weight: 600; }
 .hyper-byline {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 13.5px; color: var(--faint); transition: color .18s; white-space: nowrap;
