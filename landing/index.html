@@ -98,36 +98,23 @@
   </div>
 </header>
 
-<!-- ============ TRUST / DRIVERS STRIP ============ -->
-<div class="trust">
-  <div class="wrap trust-inner">
-    <span class="lbl">THE STACK</span>
-    <div class="driver"><span class="d-ico">Py</span> FastAPI</div>
-    <div class="driver"><span class="d-ico">Pg</span> PostgreSQL + pgvector</div>
-    <div class="driver"><span class="d-ico">R</span> Redis 7</div>
-    <div class="driver"><span class="d-ico">N</span> Next.js 15</div>
-    <div class="driver"><span class="d-ico">G</span> Gemini vision</div>
-    <div class="driver"><span class="d-ico">Rs</span> Rust native driver</div>
-  </div>
-</div>
-
 <!-- ============ ROUND-TRIP COMPARISON ============ -->
 <section class="section" id="why">
   <div class="wrap">
     <div class="section-head reveal">
-      <span class="eyebrow">The problem with tool-calling</span>
-      <h2>Traditional MCP is <span class="tinted">chatty</span>. <br>OfficePlane is decisive.</h2>
-      <p>Every tool call is a network round-trip — and partial failures leave documents half-edited. OfficePlane batches the whole intent into a single atomic request that either fully succeeds or cleanly rolls back.</p>
+      <span class="eyebrow">Agentic-native ECM</span>
+      <h2>Legacy ECM bolts AI on. <br>OfficePlane is <span class="tinted">agentic-native</span>.</h2>
+      <p>Traditional content platforms make agents drive human workflows one call at a time — and partial failures leave documents half-edited. OfficePlane is skills-native: the whole intent runs as a single atomic request that either fully succeeds or cleanly rolls back.</p>
     </div>
     <div class="compare-grid">
       <div class="cc bad reveal">
-        <span class="cc-tag">Traditional pattern</span>
+        <span class="cc-tag">Legacy ECM + bolt-on AI</span>
         <h3>N round-trips</h3>
         <p class="sub">One request per action. Latency stacks. Context is lost between calls.</p>
         <div class="rt-anim" id="rtBad">
           <div class="rt-cols">
-            <div class="rt-node"><div class="box">LLM</div><div class="role">client</div></div>
-            <div class="rt-node"><div class="box">MCP</div><div class="role">server</div></div>
+            <div class="rt-node"><div class="box">Agent</div><div class="role">client</div></div>
+            <div class="rt-node"><div class="box">ECM</div><div class="role">server</div></div>
           </div>
           <div class="rt-lane" id="laneBad"></div>
           <div class="rt-counter"><b id="badCount">0</b> round-trips</div>
@@ -143,7 +130,7 @@
         <p class="sub">Plan, execute atomically, and verify intent — server-side, in a single call.</p>
         <div class="rt-anim" id="rtGood">
           <div class="rt-cols">
-            <div class="rt-node"><div class="box">LLM</div><div class="role">client</div></div>
+            <div class="rt-node"><div class="box">Agent</div><div class="role">client</div></div>
             <div class="rt-node"><div class="box">OfficePlane</div><div class="role">runtime</div></div>
           </div>
           <div class="rt-lane" id="laneGood"></div>
@@ -284,6 +271,47 @@
         <div class="action-item"><span class="a-name">write_page</span><span class="a-desc">Write content to a new page</span></div>
         <div class="action-item"><span class="a-name">edit_page</span><span class="a-desc">Modify an existing page in place</span></div>
         <div class="action-item"><span class="a-name">delete_page</span><span class="a-desc">Remove a page from the document</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PYTHON SDK EXAMPLE ============ -->
+<section class="section" id="sdk">
+  <div class="wrap">
+    <div class="code-split">
+      <div class="reveal">
+        <span class="eyebrow">Python SDK</span>
+        <h2>Five lines to <span class="tinted">document intelligence</span>.</h2>
+        <p class="sdk-lede">Initialize, extract, build. OfficePlane's SDK gives your agent full document capabilities in a few lines of Python. The harness handles orchestration, the skills handle execution.</p>
+        <div class="action-list">
+          <div class="action-item"><span class="a-name">intent</span><span class="a-desc">Declare intent, not steps — the harness figures out the execution graph</span></div>
+          <div class="action-item"><span class="a-name">verify</span><span class="a-desc">Built-in verification — every result comes with a confidence score</span></div>
+          <div class="action-item"><span class="a-name">drivers</span><span class="a-desc">Swap drivers, keep the code — LibreOffice today, Google Docs tomorrow</span></div>
+        </div>
+      </div>
+      <div class="code-block reveal">
+        <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="fname">example.py</span></div>
+        <div class="code-body">
+<div class="ln"><span class="tk-key">from</span> <span class="tk-fn">officeplane</span> <span class="tk-key">import</span> OfficePlane</div>
+<div class="ln"> </div>
+<div class="ln"><span class="tk-mut"># Initialize with a driver</span></div>
+<div class="ln">plane = <span class="tk-fn">OfficePlane</span>(driver=<span class="tk-str">"libreoffice"</span>)</div>
+<div class="ln"> </div>
+<div class="ln"><span class="tk-mut"># Extract document structure</span></div>
+<div class="ln">doc = <span class="tk-key">await</span> plane.<span class="tk-fn">prettify</span>(<span class="tk-str">"report.docx"</span>)</div>
+<div class="ln"><span class="tk-fn">print</span>(doc.chapters)  <span class="tk-mut"># 8 chapters, 23 sections</span></div>
+<div class="ln"> </div>
+<div class="ln"><span class="tk-mut"># Build a new document from extracted structure</span></div>
+<div class="ln">result = <span class="tk-key">await</span> plane.<span class="tk-fn">build</span>(</div>
+<div class="ln">  source=doc,</div>
+<div class="ln">  schema=<span class="tk-str">"exec_summary"</span>,</div>
+<div class="ln">  rules=[<span class="tk-str">"max 2 pages"</span>, <span class="tk-str">"include KPIs"</span>]</div>
+<div class="ln">)</div>
+<div class="ln"> </div>
+<div class="ln"><span class="tk-fn">print</span>(result.confidence)  <span class="tk-mut"># 0.97</span></div>
+<div class="ln"><span class="tk-fn">print</span>(result.path)        <span class="tk-mut"># ./output/exec-summary.docx</span></div>
+        </div>
       </div>
     </div>
   </div>
