@@ -57,3 +57,4 @@ cache/
 
 # Claude Code state
 .claude/scheduled_tasks.lock
+*.tsbuildinfo

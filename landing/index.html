@@ -1,16 +1,424 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OfficePlane | Agentic Runtime For Documents</title>
-    <meta name="description" content="Open-source agentic runtime to plan, execute, and verify document workflows across LibreOffice, Google Docs, and Microsoft Office." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OfficePlane — Agentic Runtime for Documents</title>
+  <meta name="description" content="Open-source agentic runtime that gives agents hands on documents — ingest, understand, plan, execute, and verify in one atomic, verified request." />
+  <link rel="icon" type="image/png" href="/logo-phosphor.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <div class="brand">
+      <img class="logo" src="/logo-phosphor.png" alt="OfficePlane">
+      <div class="brand-text">
+        <strong>OfficePlane</strong>
+        <span>agentic runtime for documents</span>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a class="link" href="#protocol">Protocol</a>
+      <a class="link" href="#pillars">Capabilities</a>
+      <a class="link" href="#drivers">Drivers</a>
+      <a class="link" href="#enterprise">Enterprise</a>
+      <a class="hyper-byline" href="#">by the <b>hyper <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21a9 9 0 1 1 9-9"></path><path d="M12 12l5-3"></path><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle></svg></b> team</a>
+      <a class="stars-pill" href="https://github.com/officeplane/officeplane" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z"></path></svg>
+        <b>1.5k</b> stars
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/officeplane/officeplane" target="_blank" rel="noopener">View Repo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="glow-a"></div>
+  <div class="glow-b"></div>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="hero-left">
+        <div class="hero-badge">
+          <span class="tag">v0.1 · Render Plane</span>
+          Plan → Execute → Verify
+        </div>
+        <h1>The <span class="grad">Agentic Runtime</span> for Documents</h1>
+        <p class="lede">Open-source runtime that gives agents <b>hands</b> on documents — ingest, understand, plan, execute, and verify — in <b>one atomic, verified request</b> instead of dozens of chatty round-trips.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="https://github.com/officeplane/officeplane" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z"></path></svg>
+            Star on GitHub
+          </a>
+          <a class="btn btn-ghost btn-lg" href="#protocol">Read the protocol <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><div class="n">1<span class="u"> req</span></div><div class="l">for an end-to-end run</div></div>
+          <div class="stat"><div class="n">~0.5<span class="u">s</span></div><div class="l">convert + render, native driver</div></div>
+          <div class="stat"><div class="n">100<span class="u">%</span></div><div class="l">traceable, verified outcomes</div></div>
+        </div>
+      </div>
+
+      <!-- run card -->
+      <div class="hero-right">
+        <div class="run-card" id="runCard">
+          <div class="run-head">
+            <div class="run-id"><span class="run-dot"></span> Run <span class="mono">#4,821</span> · Completed</div>
+            <div class="run-status">SUCCESS</div>
+          </div>
+          <div class="intent-box">
+            <div class="lab">INTENT</div>
+            <div class="txt">“Add a Market Analysis chapter with sections for competitors, pricing, and market size”</div>
+            <div class="code-ico">&lt;/&gt;</div>
+          </div>
+          <div class="metric-row">
+            <div class="metric m-a"><div class="ml">ACTIONS</div><div class="mv">24</div></div>
+            <div class="metric m-b"><div class="ml">LATENCY</div><div class="mv">1.1s</div></div>
+            <div class="metric m-c"><div class="ml">PAGES</div><div class="mv">42</div></div>
+          </div>
+          <div class="graph-lab">Action Graph</div>
+          <div class="steps" id="steps">
+            <div class="step" data-i="0"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></span><span class="st"><b>Plan</b> → action tree generated</span><span class="ms">0.4s</span></div>
+            <div class="step" data-i="1"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></span><span class="st"><b>add_chapter</b> · Market Analysis</span><span class="ms">0.2s</span></div>
+            <div class="step" data-i="2"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></span><span class="st"><b>add_section</b> ×3 · <b>write_page</b> ×3 — atomic</span><span class="ms">0.3s</span></div>
+            <div class="step" data-i="3"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></span><span class="st"><b>Verify</b> → result matches intent</span><span class="ms">0.2s</span></div>
+          </div>
+          <div class="verify-banner" id="verifyBanner">
+            <div class="vck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></div>
+            <div class="vt"><b>Verification passed</b><span>confidence 0.95 · intent matched · audit logged</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ TRUST / DRIVERS STRIP ============ -->
+<div class="trust">
+  <div class="wrap trust-inner">
+    <span class="lbl">THE STACK</span>
+    <div class="driver"><span class="d-ico">Py</span> FastAPI</div>
+    <div class="driver"><span class="d-ico">Pg</span> PostgreSQL + pgvector</div>
+    <div class="driver"><span class="d-ico">R</span> Redis 7</div>
+    <div class="driver"><span class="d-ico">N</span> Next.js 15</div>
+    <div class="driver"><span class="d-ico">G</span> Gemini vision</div>
+    <div class="driver"><span class="d-ico">Rs</span> Rust native driver</div>
+  </div>
+</div>
+
+<!-- ============ ROUND-TRIP COMPARISON ============ -->
+<section class="section" id="why">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">The problem with tool-calling</span>
+      <h2>Traditional MCP is <span class="tinted">chatty</span>. <br>OfficePlane is decisive.</h2>
+      <p>Every tool call is a network round-trip — and partial failures leave documents half-edited. OfficePlane batches the whole intent into a single atomic request that either fully succeeds or cleanly rolls back.</p>
+    </div>
+    <div class="compare-grid">
+      <div class="cc bad reveal">
+        <span class="cc-tag">Traditional pattern</span>
+        <h3>N round-trips</h3>
+        <p class="sub">One request per action. Latency stacks. Context is lost between calls.</p>
+        <div class="rt-anim" id="rtBad">
+          <div class="rt-cols">
+            <div class="rt-node"><div class="box">LLM</div><div class="role">client</div></div>
+            <div class="rt-node"><div class="box">MCP</div><div class="role">server</div></div>
+          </div>
+          <div class="rt-lane" id="laneBad"></div>
+          <div class="rt-counter"><b id="badCount">0</b> round-trips</div>
+        </div>
+        <ul class="cc-points">
+          <li><span class="pi">✕</span> No atomicity — partial failures corrupt files</li>
+          <li><span class="pi">✕</span> Client must verify every result by hand</li>
+        </ul>
+      </div>
+      <div class="cc good reveal">
+        <span class="cc-tag">OfficePlane pattern</span>
+        <h3>1 verified request</h3>
+        <p class="sub">Plan, execute atomically, and verify intent — server-side, in a single call.</p>
+        <div class="rt-anim" id="rtGood">
+          <div class="rt-cols">
+            <div class="rt-node"><div class="box">LLM</div><div class="role">client</div></div>
+            <div class="rt-node"><div class="box">OfficePlane</div><div class="role">runtime</div></div>
+          </div>
+          <div class="rt-lane" id="laneGood"></div>
+          <div class="rt-counter"><b id="goodCount">1</b> request · verified</div>
+        </div>
+        <ul class="cc-points">
+          <li><span class="pi">✓</span> All-or-nothing execution with full intent preserved</li>
+          <li><span class="pi">✓</span> Server confirms the outcome, not just that actions ran</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PLAN-EXECUTE-VERIFY ============ -->
+<section class="section" id="protocol" style="background:var(--bg-1); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">The protocol</span>
+      <h2>Plan → Execute → Verify</h2>
+      <p>A declarative loop that turns a high-level intent into a proven outcome. No chatty back-and-forth — just a plan you can inspect, atomic execution, and an AI verification of intent.</p>
+    </div>
+    <div class="pev-grid">
+      <div class="pev p1 reveal"><span class="pev-line"></span>
+        <div class="num">01</div>
+        <div class="pev-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
+        <h3>Plan</h3>
+        <p>Send a high-level intent. The runtime returns a structured, inspectable plan with dependency placeholders between actions.</p>
+        <div class="pev-meta"><span class="k">POST</span> /api/documents/{id}/plan</div>
+      </div>
+      <div class="pev p2 reveal"><span class="pev-line"></span>
+        <div class="num">02</div>
+        <div class="pev-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"></path></svg></div>
+        <h3>Execute</h3>
+        <p>Approve the plan and the server runs every action atomically. Placeholders like <span class="mono" style="color:var(--violet)">$node_0.id</span> resolve at runtime.</p>
+        <div class="pev-meta"><span class="k">POST</span> /api/documents/{id}/execute</div>
+      </div>
+      <div class="pev p3 reveal"><span class="pev-line"></span>
+        <div class="num">03</div>
+        <div class="pev-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><path d="M22 4L12 14.01l-3-3"></path></svg></div>
+        <h3>Verify</h3>
+        <p>The runtime uses AI to confirm the <b style="color:var(--text)">intent</b> was achieved — returning findings, a confidence score, and an audit trail.</p>
+        <div class="pev-meta"><span class="k">POST</span> /api/documents/{id}/verify</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PILLARS (brand illustrations) ============ -->
+<section class="section" id="pillars">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Core capabilities</span>
+      <h2>A complete pipeline, <span class="tinted">not just an editor</span>.</h2>
+      <p>Ingest, understand, plan, execute, and verify — with queueing, hooks, and multi-agent teamwork built into the runtime.</p>
+    </div>
+    <div class="cap-grid">
+      <div class="feat-card reveal">
+        <div class="feat-body">
+          <h4>Document ingestion</h4>
+          <p>Upload DOCX or PDF. Gemini vision extracts a hierarchical structure — chapters, sections, pages — with pgvector embeddings for semantic search.</p>
+          <div class="cap-meta">DOCX · PDF → structure + embeddings</div>
+        </div>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-body">
+          <h4>Content generation</h4>
+          <p>Generate presentations, reports, and documents from scratch via async agent workflows, streamed live over SSE.</p>
+          <div class="cap-meta">prompt → PPTX / DOCX · streamed</div>
+        </div>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-body">
+          <h4>Task queue</h4>
+          <p>Redis-backed queue with document-level locking, instant BRPOP dispatch, retry with backoff, and parallel execution across documents.</p>
+          <div class="cap-meta">Redis 7 · doc-level locks · retries</div>
+        </div>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-body">
+          <h4>Agent teams</h4>
+          <p>Decompose complex tasks across multiple parallel agents with shared task lists, dependency tracking, and pub/sub messaging.</p>
+          <div class="cap-meta">parallel agents · shared task lists</div>
+        </div>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-body">
+          <h4>Document hooks</h4>
+          <p>Attach automated checks to lifecycle events — compliance reviews, style enforcement, cross-doc sync — triggered on every edit.</p>
+          <div class="cap-meta">on-edit triggers · compliance · sync</div>
+        </div>
+      </div>
+      <div class="feat-card reveal">
+        <div class="feat-body">
+          <h4>Real-time updates</h4>
+          <p>WebSocket and SSE streaming for live progress on every operation — watch plans, executions, and verifications as they happen.</p>
+          <div class="cap-meta">WebSocket · SSE · live progress</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CODE / PLAN EXAMPLE ============ -->
+<section class="section" id="actions">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Composable actions</span>
+      <h2>One declarative call. <span class="tinted">Built-in dependencies.</span></h2>
+      <p>Chain actions that reference each other's outputs. The runtime resolves the dependency graph before a single byte is written.</p>
+    </div>
+    <div class="code-split">
+      <div class="code-block reveal">
+        <div class="code-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="fname">plan.json</span></div>
+        <div class="code-body">
+<div class="ln"><span class="tk-mut">{</span></div>
+<div class="ln">  <span class="tk-key">"actions"</span>: <span class="tk-mut">[</span></div>
+<div class="ln">    <span class="tk-mut">{</span> <span class="tk-key">"node_id"</span>: <span class="tk-str">"node_0"</span>,</div>
+<div class="ln">      <span class="tk-key">"action"</span>: <span class="tk-fn">"add_chapter"</span>,</div>
+<div class="ln">      <span class="tk-key">"params"</span>: <span class="tk-mut">{</span> <span class="tk-key">"title"</span>: <span class="tk-str">"Market Analysis"</span> <span class="tk-mut">},</span></div>
+<div class="ln">      <span class="tk-key">"depends_on"</span>: <span class="tk-mut">[] },</span></div>
+<div class="ln">    <span class="tk-mut">{</span> <span class="tk-key">"node_id"</span>: <span class="tk-str">"node_1"</span>,</div>
+<div class="ln">      <span class="tk-key">"action"</span>: <span class="tk-fn">"add_section"</span>,</div>
+<div class="ln">      <span class="tk-key">"params"</span>: <span class="tk-mut">{</span> <span class="tk-key">"title"</span>: <span class="tk-str">"Competitors"</span>,</div>
+<div class="ln">        <span class="tk-key">"chapter_id"</span>: <span class="tk-ph">"$node_0.id"</span> <span class="tk-mut">},</span></div>
+<div class="ln">      <span class="tk-key">"depends_on"</span>: <span class="tk-mut">[</span><span class="tk-str">"node_0"</span><span class="tk-mut">] },</span></div>
+<div class="ln">    <span class="tk-mut">{</span> <span class="tk-key">"node_id"</span>: <span class="tk-str">"node_2"</span>,</div>
+<div class="ln">      <span class="tk-key">"action"</span>: <span class="tk-fn">"write_page"</span>,</div>
+<div class="ln">      <span class="tk-key">"params"</span>: <span class="tk-mut">{</span> <span class="tk-key">"section_id"</span>: <span class="tk-ph">"$node_1.id"</span> <span class="tk-mut">},</span></div>
+<div class="ln">      <span class="tk-key">"depends_on"</span>: <span class="tk-mut">[</span><span class="tk-str">"node_1"</span><span class="tk-mut">] }</span></div>
+<div class="ln">  <span class="tk-mut">]</span></div>
+<div class="ln"><span class="tk-mut">}</span></div>
+        </div>
+      </div>
+      <div class="action-list reveal">
+        <div class="action-item"><span class="a-name">add_chapter</span><span class="a-desc">Add a chapter to the document</span></div>
+        <div class="action-item"><span class="a-name">add_section</span><span class="a-desc">Add a section to a chapter</span></div>
+        <div class="action-item"><span class="a-name">write_page</span><span class="a-desc">Write content to a new page</span></div>
+        <div class="action-item"><span class="a-name">edit_page</span><span class="a-desc">Modify an existing page in place</span></div>
+        <div class="action-item"><span class="a-name">delete_page</span><span class="a-desc">Remove a page from the document</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DRIVERS / PERF ============ -->
+<section class="section" id="drivers" style="background:var(--bg-1); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Pluggable drivers</span>
+      <h2>Swap the engine. <span class="tinted">Keep the contract.</span></h2>
+      <p>The same <span class="mono">OfficeDriver</span> interface runs everywhere — from a zero-dependency mock for CI to a native Rust core that's ~50% faster.</p>
+    </div>
+    <div class="driver-grid">
+      <div class="driver-card reveal">
+        <div class="dc-ico" style="color:var(--faint)">{ }</div>
+        <h4>Mock</h4>
+        <p class="dc-sub">Zero dependencies. Runs full E2E tests in-process — no LibreOffice, no logins.</p>
+        <div class="dc-speed"><span>CI / testing</span><b>instant</b></div>
+      </div>
+      <div class="driver-card reveal">
+        <div class="dc-ico" style="color:var(--blue)">LO</div>
+        <h4>LibreOffice</h4>
+        <p class="dc-sub">Hardened subprocess pool with backpressure, timeouts and restarts.</p>
+        <div class="dc-speed"><span>convert + render</span><b>~1.1s</b></div>
+      </div>
+      <div class="driver-card reveal">
+        <div class="dc-ico" style="color:var(--brand)">Rs</div>
+        <h4>Rust native <span class="badge-fast">FASTEST</span></h4>
+        <p class="dc-sub">PyO3-bound native core with real threads for maximum throughput.</p>
+        <div class="dc-speed"><span>convert + render</span><b>~0.5s</b></div>
+      </div>
+      <div class="driver-card reveal">
+        <div class="dc-ico" style="color:var(--violet)">Vz</div>
+        <h4>Gemini vision</h4>
+        <p class="dc-sub">Page images → hierarchical structure with pgvector embeddings for semantic search.</p>
+        <div class="dc-speed"><span>ingestion</span><b>per-page</b></div>
+      </div>
+    </div>
+
+    <div class="perf reveal">
+      <h4>Convert + render latency</h4>
+      <div class="perf-row lo"><span class="pr-name">LibreOffice</span><div class="pr-track"><div class="pr-fill" data-w="100%"></div></div><span class="pr-val">1.1s</span></div>
+      <div class="perf-row rust"><span class="pr-name">Rust native</span><div class="pr-track"><div class="pr-fill" data-w="50%"></div></div><span class="pr-val">0.5s</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ENTERPRISE ============ -->
+<section class="section" id="enterprise">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Enterprise by default</span>
+      <h2>Self-contained. <span class="tinted">Auditable. Provable.</span></h2>
+      <p>No login, JWT, or database required to run end-to-end. Every run is observable and reproducible — auth is optional and pluggable when you need it.</p>
+    </div>
+    <div class="ent-grid">
+      <div class="ent reveal">
+        <div class="e-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"></path></svg></div>
+        <h4>Structured audit logs</h4>
+        <p>Every action carries a <span class="mono">request_id</span>. Reconstruct exactly what an agent did, and when.</p>
+      </div>
+      <div class="ent reveal">
+        <div class="e-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M7 15l3-4 3 2 4-6"></path></svg></div>
+        <h4>Prometheus metrics</h4>
+        <p>Latency, failure rates, pool readiness and restarts — exposed on <span class="mono">/metrics</span> out of the box.</p>
+      </div>
+      <div class="ent reveal">
+        <div class="e-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg></div>
+        <h4>Checksummed manifests</h4>
+        <p>Every PDF and page ships with a SHA-256 and timing breakdown. Deterministic, reproducible output.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUICKSTART CTA ============ -->
+<section class="section cta-final">
+  <div class="wrap">
+    <div class="cta-box reveal">
+      <h2>Give your agents hands.</h2>
+      <p>Clone and compose — UI, API, Postgres and Redis come up together. Running in under 5 minutes.</p>
+      <div class="cta-cmd">
+        <span><span class="prompt">$</span> git clone https://github.com/officeplane/officeplane &amp;&amp; docker compose up -d</span>
+        <span class="copy" id="copyCmd">copy</span>
+      </div>
+      <div class="cta-actions">
+        <a class="btn btn-primary btn-lg" href="https://github.com/officeplane/officeplane" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.79 23.4c.6.11.82-.26.82-.58v-2c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z"></path></svg>
+          Star on GitHub
+        </a>
+        <a class="btn btn-ghost btn-lg" href="https://enoch3712.github.io/OfficePlane/docs/getting-started/quickstart" target="_blank" rel="noopener">Read the docs <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-inner">
+      <div class="brand">
+        <img class="logo" src="/logo-phosphor.png" alt="OfficePlane">
+        <div class="brand-text">
+          <strong>OfficePlane</strong>
+          <span>agentic runtime for documents</span>
+        </div>
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h5>Documentation</h5>
+          <a href="https://enoch3712.github.io/OfficePlane/docs/overview" target="_blank" rel="noopener">Overview</a>
+          <a href="https://enoch3712.github.io/OfficePlane/docs/getting-started/quickstart" target="_blank" rel="noopener">Quick Start</a>
+          <a href="https://enoch3712.github.io/OfficePlane/docs/architecture/overview" target="_blank" rel="noopener">Architecture</a>
+        </div>
+        <div class="footer-col">
+          <h5>Features</h5>
+          <a href="https://enoch3712.github.io/OfficePlane/docs/features/ingestion" target="_blank" rel="noopener">Document Ingestion</a>
+          <a href="https://enoch3712.github.io/OfficePlane/docs/features/content-generation" target="_blank" rel="noopener">Content Generation</a>
+          <a href="https://enoch3712.github.io/OfficePlane/docs/features/hooks" target="_blank" rel="noopener">Document Hooks</a>
+        </div>
+        <div class="footer-col">
+          <h5>Community</h5>
+          <a href="https://github.com/officeplane/officeplane" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://discord.gg/officeplane" target="_blank" rel="noopener">Discord</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 OfficePlane · Agentic Runtime for Documents · <span class="hyper-byline-inline">powered by <b>hyper</b></span></span>
+      <span>render · inspect · patch — with proofs</span>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
 </html>
