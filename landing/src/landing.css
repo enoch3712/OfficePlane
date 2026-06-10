@@ -287,7 +287,6 @@ a { color: inherit; text-decoration: none; }
 
 /* ============ PILLARS (capabilities) ============ */
 .cap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 .feat-card {
   border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
   background: var(--bg-1); transition: transform .25s ease, border-color .25s ease;
@@ -394,7 +393,7 @@ a { color: inherit; text-decoration: none; }
 /* responsive */
 @media (max-width: 980px) {
   .hyper-byline { display: none; }
-  .hero-grid, .compare-grid, .code-split, .feat-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hero-grid, .compare-grid, .code-split { grid-template-columns: 1fr; gap: 40px; }
   .cap-grid { grid-template-columns: 1fr 1fr; }
   .pev-grid, .ent-grid { grid-template-columns: 1fr; }
   .driver-grid { grid-template-columns: repeat(2,1fr); }
