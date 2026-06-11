@@ -1,8 +1,8 @@
 ---
 name: generate-docx
 description: Generate a Word document from ingested source documents using the agnostic Document tree (CommonMark/Pandoc-aligned)
-model: deepseek/deepseek-v4-flash
-tier: flash
+model: deepseek/deepseek-v4-pro
+tier: pro
 inputs:
   - name: source_document_ids
     type: list[str]

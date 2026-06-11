@@ -1,8 +1,8 @@
 ---
 name: generate-xlsx
 description: Generate an Excel workbook (.xlsx) from ingested source documents — tabular with charts, formulas, KPI cells
-model: deepseek/deepseek-v4-flash
-tier: flash
+model: deepseek/deepseek-v4-pro
+tier: pro
 inputs:
   - name: source_document_ids
     type: list[str]

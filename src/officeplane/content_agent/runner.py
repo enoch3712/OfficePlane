@@ -124,7 +124,14 @@ class ContentAgentRunner:
 
         skills_root = Path(__file__).parent / "skills"
         discovered = discover_skills(skills_root)
-        system_prompt = build_system_prompt(skills=discovered, user_context="")
+        workspace_context = (
+            f"Your workspace directory is {workspace}. It already exists. "
+            f"Write all files and run all commands inside it (cd {workspace} first); "
+            "never use /workspace or any other directory."
+        )
+        system_prompt = build_system_prompt(
+            skills=discovered, user_context=workspace_context
+        )
 
         try:
             agent_driver = get_driver(driver)

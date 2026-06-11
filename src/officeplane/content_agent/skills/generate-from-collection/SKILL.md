@@ -1,8 +1,8 @@
 ---
 name: generate-from-collection
 description: Generate a single Document (Word/PowerPoint) from all source documents in a collection, with attributions back to each source
-model: deepseek/deepseek-v4-flash
-tier: flash
+model: deepseek/deepseek-v4-pro
+tier: pro
 inputs:
   - name: collection_id
     type: str

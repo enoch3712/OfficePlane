@@ -1,8 +1,8 @@
 ---
 name: generate-pptx
 description: Generate a PowerPoint deck from ingested source documents using the agnostic Document tree (parametrised by slide_count, style, audience, tone)
-model: deepseek/deepseek-v4-flash
-tier: flash
+model: deepseek/deepseek-v4-pro
+tier: pro
 inputs:
   - name: source_document_ids
     type: list[str]

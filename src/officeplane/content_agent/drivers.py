@@ -45,7 +45,8 @@ class DeepAgentsSDKDriver:
             model=chat_model, system_prompt=system_prompt, backend=backend
         )
 
-        async for raw in agent.astream(message):
+        agent_input = {"messages": [{"role": "user", "content": message}]}
+        async for raw in agent.astream_events(agent_input, version="v2"):
             event = _normalize_sdk_event(raw)
             if event:
                 yield event
@@ -134,31 +135,42 @@ def get_driver(driver_type: str) -> DeepAgentsSDKDriver | DeepAgentsCLIDriver:
 # ── SDK event normalization ────────────────────────────────────────────────────
 
 def _normalize_sdk_event(event: Any) -> Optional[AgentEvent]:
-    """Convert a raw LangGraph/deepagents SDK event to AgentEvent."""
-    event_type = getattr(event, "event", None) or "unknown"
+    """Convert a raw LangGraph/deepagents SDK event to AgentEvent.
+
+    ``astream_events(version="v2")`` yields dicts shaped like
+    ``{"event": ..., "name": ..., "data": {...}}``.
+    """
+    if isinstance(event, dict):
+        event_type = event.get("event", "unknown")
+        name = event.get("name", "unknown")
+        data = event.get("data", {}) or {}
+    else:
+        event_type = getattr(event, "event", None) or "unknown"
+        name = getattr(event, "name", "unknown")
+        data = getattr(event, "data", {}) or {}
 
     if event_type in ("on_chat_model_stream", "on_llm_stream"):
-        content = ""
-        if hasattr(event, "data"):
-            chunk = event.data.get("chunk")
-            if chunk and hasattr(chunk, "content"):
-                content = chunk.content
+        chunk = data.get("chunk")
+        content = getattr(chunk, "content", "") if chunk is not None else ""
+        if isinstance(content, list):
+            content = "".join(
+                part.get("text", "") if isinstance(part, dict) else str(part)
+                for part in content
+            )
         if content:
             return AgentEvent(type="delta", data={"text": content})
 
     elif event_type == "on_tool_start":
-        data = getattr(event, "data", {})
         return AgentEvent(
             type="tool_call",
-            data={"name": data.get("name", "unknown"), "arguments": data.get("input", {})},
+            data={"name": name, "arguments": data.get("input", {})},
         )
 
     elif event_type == "on_tool_end":
-        data = getattr(event, "data", {})
         return AgentEvent(
             type="tool_result",
             data={
-                "name": data.get("name", "unknown"),
+                "name": name,
                 "result": str(data.get("output", ""))[:2000],
                 "is_error": False,
             },

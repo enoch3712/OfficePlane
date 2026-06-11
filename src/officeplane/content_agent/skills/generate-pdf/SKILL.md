@@ -1,8 +1,8 @@
 ---
 name: generate-pdf
 description: Generate a PDF from ingested source documents using the agnostic Document tree
-model: deepseek/deepseek-v4-flash
-tier: flash
+model: deepseek/deepseek-v4-pro
+tier: pro
 inputs:
   - name: source_document_ids
     type: list[str]

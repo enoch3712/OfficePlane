@@ -216,7 +216,7 @@ class SkillExecutor:
         """Write an ExecutionHistory row. Soft-fails on DB error so a transient
         DB outage doesn't break the agent."""
         try:
-            from prisma import Prisma
+            from prisma import Json, Prisma
 
             db = Prisma()
             await db.connect()
@@ -228,7 +228,7 @@ class SkillExecutor:
                         "documentId": document_id,
                         "actorType": "agent",
                         "actorId": actor_id,
-                        "metadata": {"skill": skill.name, "output_keys": list(output)},
+                        "metadata": Json({"skill": skill.name, "output_keys": list(output)}),
                     }
                 )
             finally:

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Any
 from uuid import uuid4
 
+from prisma import Json
 from prisma.enums import TaskState, TaskPriority
 from .db import get_db
 
@@ -194,7 +195,7 @@ class TaskQueue:
                 data={
                     "state": TaskState.COMPLETED,
                     "completedAt": end_time,
-                    "result": result,
+                    "result": Json(result),
                 },
             )
             await db.taskretry.update_many(
@@ -441,10 +442,10 @@ class TaskQueue:
                 "taskType": task_type,
                 "taskName": task_name,
                 "documentId": document_id,
-                "payload": payload,
+                "payload": Json(payload),
                 "priority": priority,
                 "maxRetries": max_retries,
-                "metadata": {"traceId": trace_id},
+                "metadata": Json({"traceId": trace_id}),
             }
         )
 
