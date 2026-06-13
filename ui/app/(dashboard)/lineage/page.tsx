@@ -58,6 +58,17 @@ export default function LineageIndexPage() {
                   {doc.total_chapters} chapters · {doc.total_sections} sections
                 </p>
               </div>
+              <span
+                aria-label={doc.has_lineage ? 'Has lineage trail' : 'No lineage trail yet'}
+                className={cn(
+                  'text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded border shrink-0',
+                  doc.has_lineage
+                    ? 'border-[#5EFCAB]/30 text-[#5EFCAB] bg-[#5EFCAB]/5'
+                    : 'border-border text-muted-foreground/50',
+                )}
+              >
+                {doc.has_lineage ? 'Has trail' : 'No trail yet'}
+              </span>
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-[#5EFCAB] transition-colors shrink-0" />
             </Link>
           ))}

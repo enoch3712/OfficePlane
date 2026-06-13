@@ -93,11 +93,15 @@ async def get_document_lineage(
 
 
 def _empty_response(src_doc, *, workspace_id: str) -> dict[str, Any]:
+    # No generation references this document, so it is neither a source of
+    # anything nor a generated output with a known workspace. Return empty
+    # sources rather than listing the document as its own source — that made
+    # the graph render the document as a lone, self-referential node.
     return {
         "document": {"id": src_doc.id, "title": src_doc.title,
                      "workspace_id": workspace_id, "output_path": ""},
         "nodes": [],
-        "sources": [_source_to_dict(src_doc)],
+        "sources": [],
         "derivations": [],
         "revisions": [],
     }

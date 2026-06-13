@@ -66,6 +66,7 @@ export interface DocumentListItem {
   total_sections: number
   total_pages?: number
   status?: string
+  has_lineage?: boolean
 }
 
 export interface Document {

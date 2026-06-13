@@ -503,7 +503,11 @@ async def list_documents():
     db = await get_db()
     documents = await db.document.find_many(
         order={"createdAt": "desc"},
-        include={"chapters": {"include": {"sections": True}}},
+        include={
+            "chapters": {"include": {"sections": True}},
+            # One derivation is enough to know the document has a source trail.
+            "derivations": {"take": 1},
+        },
     )
 
     return [
@@ -514,6 +518,7 @@ async def list_documents():
             "createdAt": doc.createdAt.isoformat(),
             "total_chapters": len(doc.chapters or []),
             "total_sections": sum(len(ch.sections or []) for ch in (doc.chapters or [])),
+            "has_lineage": bool(doc.derivations),
         }
         for doc in documents
     ]

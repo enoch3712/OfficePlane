@@ -15,6 +15,7 @@ import ReactFlow, {
   useNodesState,
   useReactFlow,
 } from 'reactflow'
+import { GitBranch } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { NodeBadge, type NodeBadgeData } from './NodeBadge'
 import { fetchLineage } from '@/lib/api/lineage'
@@ -610,6 +611,28 @@ export function LineageGraph({ documentId }: LineageGraphProps) {
   }
 
   if (!lineage) return null
+
+  const isEmpty =
+    lineage.nodes.length === 0 &&
+    lineage.derivations.length === 0 &&
+    lineage.revisions.length === 0 &&
+    lineage.sources.length === 0
+
+  if (isEmpty) {
+    return (
+      <div className="flex items-center justify-center h-full bg-[#0F1116]">
+        <div className="text-center space-y-2 max-w-sm px-6">
+          <GitBranch aria-hidden="true" className="w-10 h-10 text-muted-foreground/40 mx-auto mb-1" />
+          <p className="text-sm text-foreground">No source trail recorded yet</p>
+          <p className="text-xs text-muted-foreground">
+            This document hasn&apos;t been used to generate anything, and wasn&apos;t
+            generated from tracked sources. Generate a document from a source to see
+            its provenance, derivations, and revisions here.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <ReactFlowProvider>
