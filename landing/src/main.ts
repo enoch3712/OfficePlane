@@ -105,7 +105,7 @@ if (rtBad) rtIO.observe(rtBad)
 const copyBtn = document.getElementById('copyCmd')
 if (copyBtn) {
   copyBtn.addEventListener('click', () => {
-    navigator.clipboard?.writeText('git clone https://github.com/officeplane/officeplane && docker compose up -d')
+    navigator.clipboard?.writeText('git clone https://github.com/enoch3712/OfficePlane && docker compose up -d')
     const old = copyBtn.textContent
     copyBtn.textContent = 'copied ✓'
     copyBtn.style.color = 'var(--green)'
